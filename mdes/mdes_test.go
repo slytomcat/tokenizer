@@ -12,7 +12,7 @@ func init() {
 
 	var err error
 
-	if mdesAPI, err = NewMDESapi(); err != nil {
+	if mdesAPI, err = NewMDESapi("SandBoxKeys"); err != nil {
 		panic(err)
 	}
 }
@@ -191,7 +191,17 @@ func TestTokenizeUniversalAPI(t *testing.T) {
 	log.Printf("Received token data:\n%v", tData)
 }
 
-// func TestServer(t *testing.T){
-// 	go doMain()
+func TestTransactUniversalAPI(t *testing.T) {
+	cData, err := mdesAPI.Transact(
+		TransactData{
+			TokenUniqueReference: "DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
+			CryptogramType:       "UCAF",
+		},
+	)
 
-// }
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Printf("Received cryptogram data:\n%v", cData)
+}

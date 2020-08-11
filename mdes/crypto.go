@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 
 	oauth "github.com/mastercard/oauth1-signer-go"
 	"github.com/mastercard/oauth1-signer-go/utils"
@@ -93,27 +94,27 @@ func (m MDESapi) encryptKey() (*rsa.PublicKey, string) {
 	return m.storedEncryptKey, m.storedEncryptKeyFP
 }
 
-func (m *MDESapi) initKeys() error {
+func (m *MDESapi) initKeys(pathToKeys string) error {
 	// TO DO: store keys in to DB and organize the keys exchange
 
 	// TO DO:  store consumer key in config
 	consumerKey := "NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000"
 
 	// load signing key
-	signingKey, err := utils.LoadSigningKey("SandBoxKeys/SandBox.p12", "keyst0repassw0rd")
+	signingKey, err := utils.LoadSigningKey(path.Join(pathToKeys, "SandBox.p12"), "keyst0repassw0rd")
 	if err != nil {
 		return err
 	}
 
 	m.oAuthSigner = &oauth.Signer{ConsumerKey: consumerKey, SigningKey: signingKey}
 
-	m.storedDecryptKey, err = utils.LoadSigningKey("SandBoxKeys/key.p12", "keystorepassword")
+	m.storedDecryptKey, err = utils.LoadSigningKey(path.Join(pathToKeys, "key.p12"), "keystorepassword")
 	if err != nil {
 		return err
 	}
 
 	// load encryption public key
-	encryptKeyData, err := readFile("SandBoxKeys/164401.crt")
+	encryptKeyData, err := readFile(path.Join(pathToKeys, "164401.crt"))
 	if err != nil {
 		return err
 	}

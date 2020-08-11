@@ -40,9 +40,9 @@ type TokenStatus struct {
 
 // TransactData bla-bla
 type TransactData struct {
-	TokenUniqueReference string
-	CryptogramType       string
-	TransactionType      string
+	TokenUniqueReference string `json:"tokenUniqueReference"`
+	CryptogramType       string `json:"cryptogramType"`
+	TransactionType      string `json:"transactionType"`
 }
 
 // CryptogramData bla-bla

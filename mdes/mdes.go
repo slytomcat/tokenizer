@@ -42,7 +42,7 @@ type encryptedPayload struct {
 }
 
 // NewMDESapi creates new MDESapi implementation
-func NewMDESapi() (*MDESapi, error) {
+func NewMDESapi(path string) (*MDESapi, error) {
 	// TO DO: run KeyExchangeManager goroutine ho handle key renewal process
 	// c := make(chan os.Signal, 1)
 	// signal.Notify(c, syscall.SIGUSR1)
@@ -60,7 +60,7 @@ func NewMDESapi() (*MDESapi, error) {
 		mutex: &sync.RWMutex{}, // RWmutex requered for KeyExchangeManager
 	}
 
-	if err := mAPI.initKeys(); err != nil {
+	if err := mAPI.initKeys(path); err != nil {
 		return nil, err
 	}
 
@@ -215,7 +215,7 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 	})
 
 	// >>> remove in PROD env
-	log.Print(string(payload))
+	// log.Print(string(payload))
 	// <<< remove in PROD env
 
 	respose, err := m.request("POST", url, payload)
@@ -286,8 +286,8 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 				CountryDialInCode int
 				PhoneNumber       int
 			}
-			PaymentAccountReference string
 		}
+		PaymentAccountReference string
 	}{}
 
 	err = json.Unmarshal(decrypted, &tokenDetail)
@@ -305,14 +305,54 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 		BrandAssetID:            resposeStruct.ProductConfig.CardBackgroundAssetID,
 		ProductCategory:         resposeStruct.TokenInfo.ProductCategory,
 		DsrpCapable:             resposeStruct.TokenInfo.DsrpCapable,
-		PaymentAccountReference: tokenDetail.AccountHolderData.PaymentAccountReference,
+		PaymentAccountReference: tokenDetail.PaymentAccountReference,
 	}, nil
 }
 
 // Transact is the universal API implementation of MDES Transact API call
-// func (m MDESapi) Transact(TransactData) (*CryptogramData, error) {
-// 	return &CryptogramData{}, nil
-// }
+func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
+	url := "https://sandbox.api.mastercard.com/mdes/remotetransaction/static/1/0/transact"
+
+	req := struct {
+		RequestID            string `json:"requestId"`
+		TokenUniqueReference string `json:"tokenUniqueReference"`
+		CryptogramType       string `json:"cryptogramType"`
+	}{
+		RequestID:            "2093809230",
+		TokenUniqueReference: transactdata.TokenUniqueReference,
+		CryptogramType:       transactdata.CryptogramType,
+	}
+
+	payload, _ := json.Marshal(req)
+	
+	respone, err := m.request("POST", url, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	responceData := struct {
+		EncryptedPayload encryptedPayload
+	}{
+		EncryptedPayload: encryptedPayload{},
+	}
+
+	if err := json.Unmarshal(respone, &responceData); err != nil {
+		return nil, err
+	}
+
+	decypted, err := m.decryptPayload(&responceData.EncryptedPayload)
+	if err != nil {
+		return nil, err
+	}
+
+	returnData := CryptogramData{}
+
+	if err := json.Unmarshal(decypted, &returnData); err != nil {
+		return nil, err
+	}
+
+	return &returnData, nil
+}
 
 //func GetAsset(string) ([]MediaContent, error)
 //func Suspend([]string) ([]TokenStatus, error)
