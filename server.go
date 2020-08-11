@@ -20,11 +20,13 @@ func main() {
 }
 
 func doMain() error {
+	// create MasterCard MDES protocol convertor instance
 	var err error
 	if m, err = mdes.NewMDESapi("mdes/SandBoxKeys"); err != nil {
 		return err
 	}
 
+	// API functions
 	http.HandleFunc("/api/v1/tokenize", tokenizeHandler)
 	http.HandleFunc("/api/v1/transact", transactHandler)
 	http.HandleFunc("/api/v1/suspend", suspendHandler)
@@ -32,9 +34,14 @@ func doMain() error {
 	http.HandleFunc("/api/v1/delete", deleteHandler)
 	http.HandleFunc("/api/v1/getassets", getAssetsHandler)
 
+	// call-back handler
 	http.HandleFunc("/callback/mdes", notifyHandler)
 
 	log.Println("Starting server at :8080")
+
+	// TO DO: make TLS server
+	// TO DO: decide where to store certificates and how to update them (when they are in filesytem then the reboot of service requered)
+	// return http.ListenAndServeTLS(":8080", certFilePath, KeyFilePath nil)
 	return http.ListenAndServe(":8080", nil)
 }
 
@@ -44,6 +51,7 @@ func doMain() error {
 func tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
 	}
 	reqData := struct {
@@ -54,11 +62,13 @@ func tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 		CardData: mdes.CardAccountData{},
 	}
 	if err = json.Unmarshal(body, &reqData); err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	tokenData, err := m.Tokenize(reqData.RequestorID, reqData.CardData, reqData.Source)
 	if err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
@@ -73,15 +83,18 @@ func tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 func transactHandler(w http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
 	}
 	reqData := mdes.TransactData{}
 	if err = json.Unmarshal(body, &reqData); err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	ransactData, err := m.Transact(reqData)
 	if err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
@@ -92,26 +105,31 @@ func transactHandler(w http.ResponseWriter, req *http.Request) {
 
 // test:
 // curl -v -H "Content-Type: application/json" -d '{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}' http://localhost:8080/api/v1/suspend
+
 func suspendHandler(w http.ResponseWriter, req *http.Request) {
 	mangeTokens(m.Suspend, w, req)
 }
 
 // test:
 // curl -v -H "Content-Type: application/json" -d '{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}' http://localhost:8080/api/v1/unsuspend
+
 func unsuspendHandler(w http.ResponseWriter, req *http.Request) {
 	mangeTokens(m.Unsuspend, w, req)
 }
 
 // test:
 // curl -v -H "Content-Type: application/json" -d '{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}' http://localhost:8080/api/v1/delete
+
 func deleteHandler(w http.ResponseWriter, req *http.Request) {
 	mangeTokens(m.Delete, w, req)
 }
 
+// common handler for Suspens|Unsuspend|Delete API calls
 func mangeTokens(action func([]string, string, string) ([]mdes.TokenStatus, error), w http.ResponseWriter, req *http.Request) {
 
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
 	}
 	reqData := struct {
@@ -120,11 +138,13 @@ func mangeTokens(action func([]string, string, string) ([]mdes.TokenStatus, erro
 		ReasonCode            string
 	}{}
 	if err = json.Unmarshal(body, &reqData); err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	responceData, err := action(reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
 	if err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
@@ -138,17 +158,22 @@ func mangeTokens(action func([]string, string, string) ([]mdes.TokenStatus, erro
 func getAssetsHandler(w http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
 	}
 	reqData := struct {
 		AssetID string
 	}{}
 	if err = json.Unmarshal(body, &reqData); err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
+	// TO DO: check media data existence in the cache for the given assetID.
+
 	responce, err := m.GetAsset(reqData.AssetID)
 	if err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
@@ -162,11 +187,13 @@ func getAssetsHandler(w http.ResponseWriter, req *http.Request) {
 func notifyHandler(w http.ResponseWriter, req *http.Request) {
 	payload, err := ioutil.ReadAll(req.Body)
 	if err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
 	reqID, err := m.Notify(payload)
 	if err != nil {
+		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
 	}
 

@@ -17,18 +17,27 @@ import (
 	"github.com/mastercard/oauth1-signer-go/utils"
 )
 
+// getRandom returns the specified number of random bytes or error
+func getRandom(nBytes int) ([]byte, error) {
+	buf := make([]byte, nBytes)
+	if _, err := io.ReadFull(rand.Reader, buf); err != nil {
+		return nil, fmt.Errorf("random bytes receiving error: %w", err)
+	}
+	return buf, nil
+}
+
 // unpaddingPKCS7 removes padding
-func unpaddingPKCS7(opentext []byte) []byte {
-	lentgth := len(opentext)
-	padding := int(opentext[lentgth-1])
-	return opentext[:lentgth-padding]
+func unpaddingPKCS7(text []byte) []byte {
+	lentgth := len(text)
+	padding := int(text[lentgth-1])
+	return text[:lentgth-padding]
 }
 
 // paddingPKCS7 makes padding
-func paddingPKCS7(ciphertext []byte, blockSize int) []byte {
-	padding := (blockSize - len(ciphertext)%blockSize)
+func paddingPKCS7(text []byte, blockSize int) []byte {
+	padding := (blockSize - len(text)%blockSize)
 	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
-	return append(ciphertext, padtext...)
+	return append(text, padtext...)
 }
 
 // decryptAESCBC decypts ciphertext via AES-CBC
@@ -58,8 +67,8 @@ func encryptAESCBC(key, opentext []byte) ([]byte, []byte, error) {
 	blockSize := block.BlockSize()
 
 	// make the iv as secure random
-	iv := make([]byte, blockSize)
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+	iv, err := getRandom(blockSize)
+	if err != nil {
 		return nil, nil, fmt.Errorf("iv creation error: %w", err)
 	}
 

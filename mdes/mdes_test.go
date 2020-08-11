@@ -122,7 +122,7 @@ func TestEncryptAndDecryptTokenizeRequest(t *testing.T) {
 	}
 
 	ePayload := struct {
-		TokenDetail EncryptedPayloadSt
+		TokenDetail encryptedPayload
 	}{}
 
 	if err := json.Unmarshal(encrypted, &ePayload); err != nil {
@@ -157,7 +157,7 @@ func TestTransactRequestDecryption(t *testing.T) {
 		t.Fatal(err)
 	}
 	ePayload := struct {
-		EncryptedPayload EncryptedPayloadSt
+		EncryptedPayload encryptedPayload
 	}{}
 
 	if err := json.Unmarshal(encrypted, &ePayload); err != nil {
@@ -224,7 +224,7 @@ func TestSuspendUniversalAPI(t *testing.T) {
 }
 
 func TestUnsuspendUniversalAPI(t *testing.T) {
-	sStats, err := mdesAPI.Suspend(
+	sStats, err := mdesAPI.Unsuspend(
 		[]string{
 			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
 			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",
@@ -241,7 +241,7 @@ func TestUnsuspendUniversalAPI(t *testing.T) {
 }
 
 func TestDeleteUniversalAPI(t *testing.T) {
-	sStats, err := mdesAPI.Suspend(
+	sStats, err := mdesAPI.Delete(
 		[]string{
 			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
 			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",
@@ -262,8 +262,9 @@ func TestGetAssetUniversalAPI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	log.Printf("Received data:\n%v", assets)
+	// too long output
+	//log.Printf("Received data:\n%v", assets)
+	log.Printf("Media data received. Payload items: %d", len(assets))
 }
 
 func TestNotifyMDES(t *testing.T) {

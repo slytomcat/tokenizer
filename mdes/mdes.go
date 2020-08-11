@@ -10,10 +10,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
 	"sync"
 
 	oauth "github.com/mastercard/oauth1-signer-go"
@@ -29,11 +29,12 @@ type MDESapi struct {
 	storedDecryptKey   *rsa.PrivateKey
 	storedEncryptKey   *rsa.PublicKey
 	storedEncryptKeyFP string
-	mutex              *sync.RWMutex // RWmutex requered for KeyExchangeManager
+	mutex              *sync.RWMutex  // RWmutex requered for KeyExchangeManager
+	ourputRe           *regexp.Regexp // compiled regexp for output filtration
 }
 
-// EncryptedPayloadSt structure of encrypted payload of MDES API
-type EncryptedPayloadSt struct {
+// encryptedPayload structure of encrypted payload of MDES API
+type encryptedPayload struct {
 	EncryptedData        string `json:"encryptedData"`        //
 	EncryptedKey         string `json:"encryptedKey"`         //
 	OaepHashingAlgorithm string `json:"oaepHashingAlgorithm"` //
@@ -59,6 +60,11 @@ func NewMDESapi(path string) (*MDESapi, error) {
 	mAPI := &MDESapi{
 		mutex: &sync.RWMutex{}, // RWmutex requered for KeyExchangeManager
 	}
+	var err error
+	mAPI.ourputRe, err = regexp.Compile(`"data":"[^"]*"`)
+	if err != nil {
+		log.Printf("regexp creation error: %v", err)
+	}
 
 	if err := mAPI.initKeys(path); err != nil {
 		return nil, err
@@ -81,8 +87,9 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 		return nil, fmt.Errorf("request signing error: %w", err)
 	}
 
-	log.Printf("\n    <<<<<<<    Request Heder:\n%v\n", request.Header)
-	log.Printf("\n    <<<<<<<    Request Body:\n%s\n", payload)
+	log.Printf("    <<<<<<<    Request URL: %s\n", url)
+	log.Printf("    <<<<<<<    Request Heder:\n%v\n", request.Header)
+	log.Printf("    <<<<<<<    Request Body:\n%s\n", payload)
 
 	// get responce
 	responce, err := http.DefaultClient.Do(request)
@@ -96,23 +103,25 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 		return nil, fmt.Errorf("responce body reading error: %w", err)
 	}
 
-	log.Printf("\n    >>>>>>>    Response: %s\n%s\n", responce.Status, body)
+	output := m.ourputRe.ReplaceAll(body, []byte(`"data":"--<--data skiped-->--"`))
+	log.Printf("\n    >>>>>>>    Response: %s\n%s\n", responce.Status, output)
 
 	return body, nil
 }
 
 // encryptPayload encrypts the payload
-func (m MDESapi) encryptPayload(payload []byte) (*EncryptedPayloadSt, error) {
+func (m MDESapi) encryptPayload(payload []byte) (*encryptedPayload, error) {
 
 	// get session key as secure random
-	sessionKey := make([]byte, 16) // 128 bit
-	if _, err := io.ReadFull(rand.Reader, sessionKey); err != nil {
+	sessionKey, err := getRandom(16) // 128 bit
+	if err != nil {
 		return nil, fmt.Errorf("seesion key creation error: %w", err)
 	}
 
-	// encrypt the session key  !!! hash alg is fixed in this implementation
+	// get latest encryption keq and it's fingerprint
 	encryptKey, encryptKeyFP := m.encryptKey()
 
+	// encrypt the session key  !!! hash alg is fixed in this implementation
 	encyptedKey, err := rsa.EncryptOAEP(sha512.New(), rand.Reader, encryptKey, sessionKey, nil)
 	if err != nil {
 		return nil, fmt.Errorf("seesion key encryption error: %w", err)
@@ -123,8 +132,8 @@ func (m MDESapi) encryptPayload(payload []byte) (*EncryptedPayloadSt, error) {
 		return nil, fmt.Errorf("payload encryption error: %w", err)
 	}
 
-	// make and return the EncryptedPayloadSt struct
-	return &EncryptedPayloadSt{
+	// make and return the encryptedPayload struct
+	return &encryptedPayload{
 		EncryptedData:        hex.EncodeToString(ciphertext),
 		EncryptedKey:         hex.EncodeToString(encyptedKey),
 		OaepHashingAlgorithm: "SHA512", // !!! hash alg is fixed in this implementation
@@ -134,7 +143,7 @@ func (m MDESapi) encryptPayload(payload []byte) (*EncryptedPayloadSt, error) {
 }
 
 // decryptPayload decrypts the payload
-func (m MDESapi) decryptPayload(ePayload *EncryptedPayloadSt) ([]byte, error) {
+func (m MDESapi) decryptPayload(ePayload *encryptedPayload) ([]byte, error) {
 
 	// decode HEX data from EncryptedPayload
 	ciphertext, err := hex.DecodeString(ePayload.EncryptedData)
@@ -200,7 +209,7 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 		TokenType          string `json:"tokenType"`
 		TokenRequestorID   string `json:"tokenRequestorId"`
 		FundingAccountInfo struct {
-			EncryptedPayload EncryptedPayloadSt `json:"encryptedPayload"`
+			EncryptedPayload encryptedPayload `json:"encryptedPayload"`
 		} `json:"fundingAccountInfo"`
 	}{
 		ResponseHost:     "assist.ru",
@@ -209,7 +218,7 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 		TokenType:        "CLOUD",    //constant
 		TokenRequestorID: RequestorID,
 		FundingAccountInfo: struct {
-			EncryptedPayload EncryptedPayloadSt `json:"encryptedPayload"`
+			EncryptedPayload encryptedPayload `json:"encryptedPayload"`
 		}{
 			EncryptedPayload: *encrPayload,
 		},
@@ -262,7 +271,7 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 			TokenAssuranceLevel int
 			ProductCategory     string
 		}
-		TokenDetail EncryptedPayloadSt
+		TokenDetail encryptedPayload
 	}{}
 
 	if err := json.Unmarshal(respose, &resposeStruct); err != nil {
@@ -335,9 +344,9 @@ func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
 	}
 
 	responceData := struct {
-		EncryptedPayload EncryptedPayloadSt
+		EncryptedPayload encryptedPayload
 	}{
-		EncryptedPayload: EncryptedPayloadSt{},
+		EncryptedPayload: encryptedPayload{},
 	}
 
 	if err := json.Unmarshal(respone, &responceData); err != nil {
@@ -441,7 +450,7 @@ func (m MDESapi) Notify(payload []byte) (string, error) {
 	reqData := struct {
 		ResponseHost     string
 		RequestID        string
-		EncryptedPayload EncryptedPayloadSt
+		EncryptedPayload encryptedPayload
 	}{}
 
 	if err := json.Unmarshal(payload, &reqData); err != nil {
@@ -452,7 +461,7 @@ func (m MDESapi) Notify(payload []byte) (string, error) {
 	if err != nil {
 		return reqData.RequestID, err
 	}
-	
+
 	// TO DO: handle notification
 	log.Printf("Notify decrypted payload:\n%s\n", decrypted)
 
