@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/slytomcat/mdes"
 )
 
 var (
-	mdes *MDESapi
+	m *mdes.MDESapi
 )
 
 func main() {
@@ -18,7 +20,7 @@ func main() {
 
 func doMain() error {
 	var err error
-	if mdes, err = NewMDESapi(); err != nil {
+	if m, err = mdes.NewMDESapi(); err != nil {
 		return err
 	}
 

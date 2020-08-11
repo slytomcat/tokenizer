@@ -1,4 +1,4 @@
-package api
+package main
 
 // CardAccountData hold the card data
 type CardAccountData struct {
