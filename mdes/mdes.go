@@ -32,8 +32,8 @@ type MDESapi struct {
 	mutex              *sync.RWMutex // RWmutex requered for KeyExchangeManager
 }
 
-// encryptedPayload structure of encrypted payload of MDES API
-type encryptedPayload struct {
+// EncryptedPayloadSt structure of encrypted payload of MDES API
+type EncryptedPayloadSt struct {
 	EncryptedData        string `json:"encryptedData"`        //
 	EncryptedKey         string `json:"encryptedKey"`         //
 	OaepHashingAlgorithm string `json:"oaepHashingAlgorithm"` //
@@ -102,7 +102,7 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 }
 
 // encryptPayload encrypts the payload
-func (m MDESapi) encryptPayload(payload []byte) (*encryptedPayload, error) {
+func (m MDESapi) encryptPayload(payload []byte) (*EncryptedPayloadSt, error) {
 
 	// get session key as secure random
 	sessionKey := make([]byte, 16) // 128 bit
@@ -123,8 +123,8 @@ func (m MDESapi) encryptPayload(payload []byte) (*encryptedPayload, error) {
 		return nil, fmt.Errorf("payload encryption error: %w", err)
 	}
 
-	// make and return the encryptedPayload struct
-	return &encryptedPayload{
+	// make and return the EncryptedPayloadSt struct
+	return &EncryptedPayloadSt{
 		EncryptedData:        hex.EncodeToString(ciphertext),
 		EncryptedKey:         hex.EncodeToString(encyptedKey),
 		OaepHashingAlgorithm: "SHA512", // !!! hash alg is fixed in this implementation
@@ -134,9 +134,9 @@ func (m MDESapi) encryptPayload(payload []byte) (*encryptedPayload, error) {
 }
 
 // decryptPayload decrypts the payload
-func (m MDESapi) decryptPayload(ePayload *encryptedPayload) ([]byte, error) {
+func (m MDESapi) decryptPayload(ePayload *EncryptedPayloadSt) ([]byte, error) {
 
-	// decode HEX data from encryptedPayload
+	// decode HEX data from EncryptedPayload
 	ciphertext, err := hex.DecodeString(ePayload.EncryptedData)
 	if err != nil {
 		return nil, fmt.Errorf("encrypted data decoding error: %w", err)
@@ -200,7 +200,7 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 		TokenType          string `json:"tokenType"`
 		TokenRequestorID   string `json:"tokenRequestorId"`
 		FundingAccountInfo struct {
-			EncryptedPayload encryptedPayload `json:"encryptedPayload"`
+			EncryptedPayload EncryptedPayloadSt `json:"encryptedPayload"`
 		} `json:"fundingAccountInfo"`
 	}{
 		ResponseHost:     "assist.ru",
@@ -209,7 +209,7 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 		TokenType:        "CLOUD",    //constant
 		TokenRequestorID: RequestorID,
 		FundingAccountInfo: struct {
-			EncryptedPayload encryptedPayload `json:"encryptedPayload"`
+			EncryptedPayload EncryptedPayloadSt `json:"encryptedPayload"`
 		}{
 			EncryptedPayload: *encrPayload,
 		},
@@ -262,7 +262,7 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 			TokenAssuranceLevel int
 			ProductCategory     string
 		}
-		TokenDetail encryptedPayload
+		TokenDetail EncryptedPayloadSt
 	}{}
 
 	if err := json.Unmarshal(respose, &resposeStruct); err != nil {
@@ -335,9 +335,9 @@ func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
 	}
 
 	responceData := struct {
-		EncryptedPayload encryptedPayload
+		EncryptedPayload EncryptedPayloadSt
 	}{
-		EncryptedPayload: encryptedPayload{},
+		EncryptedPayload: EncryptedPayloadSt{},
 	}
 
 	if err := json.Unmarshal(respone, &responceData); err != nil {
@@ -358,7 +358,7 @@ func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
 	return &returnData, nil
 }
 
-// Suspend is the universal API implementation of MDES Transact API call
+// Suspend is the universal API implementation of MDES Suspend API call
 func (m MDESapi) Suspend(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 	// TO DO: modify url according the environment
 	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/suspend"
@@ -366,20 +366,21 @@ func (m MDESapi) Suspend(tokens []string, causedBy, reasonCode string) ([]TokenS
 	return m.manageTokens(url, tokens, causedBy, reasonCode)
 }
 
-// Unsuspend is the universal API implementation of MDES Transact API call
+// Unsuspend is the universal API implementation of MDES Unsuspend API call
 func (m MDESapi) Unsuspend(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 	// TO DO: modify url according the environment
 	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/unsuspend"
 	return m.manageTokens(url, tokens, causedBy, reasonCode)
 }
 
-// Delete is the universal API implementation of MDES Transact API call
+// Delete is the universal API implementation of MDES Delete API call
 func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 	// TO DO: modify url according the environment
 	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/delete"
 	return m.manageTokens(url, tokens, causedBy, reasonCode)
 }
 
+// manageTokens - backend for suspend|unsuspend|delete universal API implementation of MDES Transact API calls
 func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 	req := struct {
 		ResponseHost          string   `json:"responseHost"`
@@ -415,4 +416,45 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 	return responceData.Tokens, nil
 }
 
-//func GetAsset(string) ([]MediaContent, error)
+// GetAsset is the universal API implementation of MDES GetAsset API call
+func (m MDESapi) GetAsset(assetID string) ([]MediaContent, error) {
+	url := "https://sandbox.api.mastercard.com/mdes/assets/static/1/0/asset/" + assetID
+	respone, err := m.request("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	responceData := struct {
+		MediaContents []MediaContent
+	}{}
+
+	if err := json.Unmarshal(respone, &responceData); err != nil {
+		return nil, err
+	}
+
+	return responceData.MediaContents, nil
+}
+
+// Notify is call-back handler
+func (m MDESapi) Notify(payload []byte) (string, error) {
+
+	reqData := struct {
+		ResponseHost     string
+		RequestID        string
+		EncryptedPayload EncryptedPayloadSt
+	}{}
+
+	if err := json.Unmarshal(payload, &reqData); err != nil {
+		return "", err
+	}
+
+	decrypted, err := m.decryptPayload(&reqData.EncryptedPayload)
+	if err != nil {
+		return reqData.RequestID, err
+	}
+	
+	// TO DO: handle notification
+	log.Printf("Notify decrypted payload:\n%s\n", decrypted)
+
+	return reqData.RequestID, nil
+}
