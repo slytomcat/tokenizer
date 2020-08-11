@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/slytomcat/mdes"
+	"github.com/slytomcat/tokenizer/mdes"
 )
 
 var (
