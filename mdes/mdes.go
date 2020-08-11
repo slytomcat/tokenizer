@@ -177,6 +177,7 @@ func (m MDESapi) decryptPayload(ePayload *encryptedPayload) ([]byte, error) {
 
 // Tokenize is the universal API implementation of MDES Tokenize API call
 func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source string) (*TokenInfo, error) {
+	// TO DO: modify url according the environment
 	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/tokenize"
 
 	payloadToEncrypt, _ := json.Marshal(struct {
@@ -311,20 +312,23 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 
 // Transact is the universal API implementation of MDES Transact API call
 func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
+	// TO DO: modify url according the environment
 	url := "https://sandbox.api.mastercard.com/mdes/remotetransaction/static/1/0/transact"
 
 	req := struct {
+		ResponseHost         string `json:"responseHost"`
 		RequestID            string `json:"requestId"`
 		TokenUniqueReference string `json:"tokenUniqueReference"`
 		CryptogramType       string `json:"cryptogramType"`
 	}{
+		ResponseHost:         "assist.ru",
 		RequestID:            "2093809230",
 		TokenUniqueReference: transactdata.TokenUniqueReference,
 		CryptogramType:       transactdata.CryptogramType,
 	}
 
 	payload, _ := json.Marshal(req)
-	
+
 	respone, err := m.request("POST", url, payload)
 	if err != nil {
 		return nil, err
@@ -354,7 +358,61 @@ func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
 	return &returnData, nil
 }
 
+// Suspend is the universal API implementation of MDES Transact API call
+func (m MDESapi) Suspend(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
+	// TO DO: modify url according the environment
+	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/suspend"
+
+	return m.manageTokens(url, tokens, causedBy, reasonCode)
+}
+
+// Unsuspend is the universal API implementation of MDES Transact API call
+func (m MDESapi) Unsuspend(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
+	// TO DO: modify url according the environment
+	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/unsuspend"
+	return m.manageTokens(url, tokens, causedBy, reasonCode)
+}
+
+// Delete is the universal API implementation of MDES Transact API call
+func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
+	// TO DO: modify url according the environment
+	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/delete"
+	return m.manageTokens(url, tokens, causedBy, reasonCode)
+}
+
+func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
+	req := struct {
+		ResponseHost          string   `json:"responseHost"`
+		RequestID             string   `json:"requestId"`
+		TokenUniqueReferences []string `json:"tokenUniqueReferences"`
+		CausedBy              string   `json:"causedBy"`
+		ReasonCode            string   `json:"reasonCode"`
+	}{
+		ResponseHost:          "assist.ru",
+		RequestID:             "2093809230",
+		TokenUniqueReferences: tokens,
+		CausedBy:              causedBy,
+		ReasonCode:            reasonCode,
+	}
+
+	payload, _ := json.Marshal(req)
+
+	respone, err := m.request("POST", url, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	responceData := struct {
+		Tokens []TokenStatus
+	}{
+		Tokens: make([]TokenStatus, 0),
+	}
+
+	if err := json.Unmarshal(respone, &responceData); err != nil {
+		return nil, err
+	}
+
+	return responceData.Tokens, nil
+}
+
 //func GetAsset(string) ([]MediaContent, error)
-//func Suspend([]string) ([]TokenStatus, error)
-//func Unsuspend([]string) ([]TokenStatus, error)
-//func Delete([]string) ([]TokenStatus, error)

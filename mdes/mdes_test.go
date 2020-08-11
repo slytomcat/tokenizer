@@ -205,3 +205,54 @@ func TestTransactUniversalAPI(t *testing.T) {
 
 	log.Printf("Received cryptogram data:\n%v", cData)
 }
+
+func TestSuspendUniversalAPI(t *testing.T) {
+	sStats, err := mdesAPI.Suspend(
+		[]string{
+			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
+			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",
+			"DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532",
+		},
+		"CARDHOLDER",
+		"OTHER",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Printf("Received data:\n%v", sStats)
+}
+
+func TestUnsuspendUniversalAPI(t *testing.T) {
+	sStats, err := mdesAPI.Suspend(
+		[]string{
+			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
+			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",
+			"DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532",
+		},
+		"CARDHOLDER",
+		"OTHER",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Printf("Received data:\n%v", sStats)
+}
+
+func TestDeleteUniversalAPI(t *testing.T) {
+	sStats, err := mdesAPI.Suspend(
+		[]string{
+			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
+			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",
+			"DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532",
+		},
+		"CARDHOLDER",
+		"OTHER",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Printf("Received data:\n%v", sStats)
+}
