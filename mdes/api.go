@@ -56,10 +56,12 @@ type CryptogramData struct {
 
 // TokenizerAPI universal API for tokenization via different payment networks
 type TokenizerAPI interface {
-	Tokenize(CardAccountData, string) (*TokenInfo, error)
+	Tokenize(string, CardAccountData, string) (*TokenInfo, error)
 	GetAsset(string) ([]MediaContent, error)
 	Suspend([]string) ([]TokenStatus, error)
 	Unsuspend([]string) ([]TokenStatus, error)
 	Delete([]string) ([]TokenStatus, error)
 	Transact(TransactData) (*CryptogramData, error)
+	GetToken(string, string) (*TokenInfo, error)
+	Search(string, string, string, CardAccountData) ([]TokenStatus, error)
 }
