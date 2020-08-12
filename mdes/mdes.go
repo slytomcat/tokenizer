@@ -8,6 +8,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"io/ioutil"
@@ -31,6 +32,14 @@ type MDESapi struct {
 	storedEncryptKeyFP string
 	mutex              *sync.RWMutex  // RWmutex requered for KeyExchangeManager
 	ourputRe           *regexp.Regexp // compiled regexp for output filtration
+	urlTokenize        string
+	urlTransact        string
+	urlSuspend         string
+	urlUnsuspend       string
+	urlDelete          string
+	urlGetAssets       string
+	urlGetToken        string
+	urlSearch          string
 }
 
 // encryptedPayload structure of encrypted payload of MDES API
@@ -66,9 +75,23 @@ func NewMDESapi(path string) (*MDESapi, error) {
 		log.Printf("regexp creation error: %v", err)
 	}
 
+	// TO DO: read path from config or load keys from DB
 	if err := mAPI.initKeys(path); err != nil {
 		return nil, err
 	}
+
+	// TO DO: read env and sys from config
+	MDESenv := "static/"  // can be "mtf/" or "" for PROD
+	MDESsys := "sandbox." // can be "" for MTF and PROD
+
+	mAPI.urlTokenize = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/tokenize", MDESsys, MDESenv)
+	mAPI.urlTransact = fmt.Sprintf("https://%sapi.mastercard.com/mdes/remotetransaction/%s1/0/transact", MDESsys, MDESenv)
+	mAPI.urlSuspend = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/suspend", MDESsys, MDESenv)
+	mAPI.urlUnsuspend = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/unsuspend", MDESsys, MDESenv)
+	mAPI.urlDelete = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/delete", MDESsys, MDESenv)
+	mAPI.urlGetAssets = fmt.Sprintf("https://%sapi.mastercard.com/mdes/assets/%s1/0/asset/", MDESsys, MDESenv)
+	mAPI.urlGetToken = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/getToken", MDESsys, MDESenv)
+	mAPI.urlSearch = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/searchTokens", MDESsys, MDESenv)
 
 	return mAPI, nil
 }
@@ -186,8 +209,6 @@ func (m MDESapi) decryptPayload(ePayload *encryptedPayload) ([]byte, error) {
 
 // Tokenize is the universal API implementation of MDES Tokenize API call
 func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source string) (*TokenInfo, error) {
-	// TO DO: modify url according the environment
-	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/tokenize"
 
 	payloadToEncrypt, _ := json.Marshal(struct {
 		CardAccountData CardAccountData `json:"cardAccountData"`
@@ -228,12 +249,12 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 	// log.Print(string(payload))
 	// <<< remove in PROD env
 
-	respose, err := m.request("POST", url, payload)
+	response, err := m.request("POST", m.urlTokenize, payload)
 	if err != nil {
 		return nil, err
 	}
 
-	resposeStruct := struct {
+	responseStruct := struct {
 		AuthenticationMethods []struct {
 			ID    int
 			Type  string
@@ -241,6 +262,8 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 		}
 		TokenUniqueReference string
 		PanUniqueReference   string
+		Status               string
+		StatusTimestamp      string
 		ProductConfig        struct {
 			BrandLogoAssetID              string
 			IssuerLogoAssetID             string
@@ -274,11 +297,11 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 		TokenDetail encryptedPayload
 	}{}
 
-	if err := json.Unmarshal(respose, &resposeStruct); err != nil {
+	if err := json.Unmarshal(response, &responseStruct); err != nil {
 		return nil, err
 	}
 
-	decrypted, err := m.decryptPayload(&resposeStruct.TokenDetail)
+	decrypted, err := m.decryptPayload(&responseStruct.TokenDetail)
 	if err != nil {
 		return nil, err
 	}
@@ -306,23 +329,223 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 	}
 
 	return &TokenInfo{
-		TokenUniqueReference:    resposeStruct.TokenUniqueReference,
-		TokenPanSuffix:          resposeStruct.TokenInfo.TokenPanSuffix,
-		TokenExpiry:             resposeStruct.TokenInfo.TokenExpiry,
-		PanUniqueReference:      resposeStruct.PanUniqueReference,
-		PanSuffix:               resposeStruct.TokenInfo.AccountPanSuffix,
-		PanExpiry:               resposeStruct.TokenInfo.AccountPanExpiry,
-		BrandAssetID:            resposeStruct.ProductConfig.CardBackgroundAssetID,
-		ProductCategory:         resposeStruct.TokenInfo.ProductCategory,
-		DsrpCapable:             resposeStruct.TokenInfo.DsrpCapable,
+		TokenUniqueReference:    responseStruct.TokenUniqueReference,
+		TokenPanSuffix:          responseStruct.TokenInfo.TokenPanSuffix,
+		TokenExpiry:             responseStruct.TokenInfo.TokenExpiry,
+		PanUniqueReference:      responseStruct.PanUniqueReference,
+		PanSuffix:               responseStruct.TokenInfo.AccountPanSuffix,
+		PanExpiry:               responseStruct.TokenInfo.AccountPanExpiry,
+		BrandAssetID:            responseStruct.ProductConfig.CardBackgroundAssetID,
+		ProductCategory:         responseStruct.TokenInfo.ProductCategory,
+		DsrpCapable:             responseStruct.TokenInfo.DsrpCapable,
+		PaymentAccountReference: tokenDetail.PaymentAccountReference,
+	}, nil
+}
+
+// Search is the universal API implementation of MDES SearchToken API call
+func (m MDESapi) Search(RequestorID, tokenURef, panURef string, cardData CardAccountData) ([]TokenStatus, error) {
+
+	// TO DO: generate random ID
+	reqID := "123456"
+	respHost := "assist.ru"
+	payload := []byte{}
+	switch {
+	case tokenURef != "":
+		type td struct {
+			TokenUniqueReference string `json:"tokenUniqueReference"`
+		}
+		payload, _ = json.Marshal(struct {
+			RequestID          string `json:"requestId"`
+			ResponseHost       string `json:"responseHost"`
+			TokenRequestorID   string `json:"tokenRequestorId"`
+			FundingAccountInfo td     `json:"fundingAccountInfo"`
+		}{
+			RequestID:        reqID,
+			ResponseHost:     respHost,
+			TokenRequestorID: RequestorID,
+			FundingAccountInfo: td{
+				TokenUniqueReference: tokenURef,
+			},
+		})
+	case panURef != "":
+		type td struct {
+			PanUniqueReference string `json:"panUniqueReference"`
+		}
+		payload, _ = json.Marshal(struct {
+			RequestID          string `json:"requestId"`
+			ResponseHost       string `json:"responseHost"`
+			TokenRequestorID   string `json:"tokenRequestorId"`
+			FundingAccountInfo td     `json:"fundingAccountInfo"`
+		}{
+			RequestID:        reqID,
+			ResponseHost:     respHost,
+			TokenRequestorID: RequestorID,
+			FundingAccountInfo: td{
+				PanUniqueReference: panURef,
+			},
+		})
+	case cardData.AccountNumber != "":
+
+		payloadToEncrypt, _ := json.Marshal(struct {
+			CardAccountData CardAccountData `json:"cardAccountData"`
+		}{
+			cardData,
+		})
+
+		encrPayload, err := m.encryptPayload(payloadToEncrypt)
+		if err != nil {
+			return nil, err
+		}
+
+		type td struct {
+			EncryptedPayload encryptedPayload `json:"encryptedPayload"`
+		}
+
+		payload, _ = json.Marshal(struct {
+			RequestID          string `json:"requestId"`
+			ResponseHost       string `json:"responseHost"`
+			TokenRequestorID   string `json:"tokenRequestorId"`
+			FundingAccountInfo td     `json:"fundingAccountInfo"`
+		}{
+			RequestID:        reqID,
+			ResponseHost:     respHost,
+			TokenRequestorID: RequestorID,
+			FundingAccountInfo: td{
+				EncryptedPayload: *encrPayload,
+			},
+		})
+	default:
+		return nil, errors.New("incorrect request parameters")
+	}
+
+	response, err := m.request("POST", m.urlSearch, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	responseData := struct {
+		Tokens []TokenStatus
+	}{
+		Tokens: []TokenStatus{},
+	}
+
+	if err := json.Unmarshal(response, &responseData); err != nil {
+		return nil, err
+	}
+
+	return responseData.Tokens, nil
+}
+
+// GetToken is the universal API implementation of MDES SearchToken API call
+func (m MDESapi) GetToken(RequestorID, tokenURef string) (*TokenInfo, error) {
+
+	// TO DO: generate random ID
+	reqID := "123456"
+	respHost := "assist.ru"
+
+	payload, _ := json.Marshal(struct {
+		RequestID    string `json:"requestId"`
+		ResponseHost string `json:"responseHost"`
+		//TokenRequestorID     string `json:"tokenRequestorId"`
+		TokenUniqueReference string `json:"tokenUniqueReference"`
+		PaymentAppInstanceID string `json:"paymentAppInstanceId"`
+		IincludeTokenDetail  string `json:"includeTokenDetail"`
+	}{
+		RequestID:    reqID,
+		ResponseHost: respHost,
+		//TokenRequestorID:     RequestorID,
+		TokenUniqueReference: tokenURef,
+		PaymentAppInstanceID: "123456789",
+		IincludeTokenDetail:  "true",
+	})
+
+	response, err := m.request("POST", m.urlGetToken, payload)
+	if err != nil {
+		return nil, err
+	}
+	responseStruct := struct {
+		Token struct {
+			TokenUniqueReference string
+			PanUniqueReference   string
+			Status               string
+			StatusTimestamp      string
+			ProductConfig        struct {
+				BrandLogoAssetID              string
+				IssuerLogoAssetID             string
+				IsCoBranded                   string
+				CoBrandName                   string
+				CoBrandLogoAssetID            string
+				CardBackgroundCombinedAssetID string
+				CardBackgroundAssetID         string
+				IconAssetID                   string
+				ForegroundColor               string
+				IssuerName                    string
+				ShortDescription              string
+				LongDescription               string
+				CustomerServiceURL            string
+				CustomerServiceEmail          string
+				CustomerServicePhoneNumber    string
+				OonlineBankingLoginURL        string
+				TermsAndConditionsURL         string
+				PrivacyPolicyURL              string
+				IssuerProductConfigCode       string
+			}
+
+			TokenInfo struct {
+				TokenPanSuffix      string
+				AccountPanSuffix    string
+				TokenExpiry         string
+				AccountPanExpiry    string
+				DsrpCapable         bool
+				TokenAssuranceLevel int
+				ProductCategory     string
+			}
+		}
+		TokenDetail encryptedPayload
+	}{}
+
+	if err := json.Unmarshal(response, &responseStruct); err != nil {
+		return nil, err
+	}
+
+	decrypted, err := m.decryptPayload(&responseStruct.TokenDetail)
+	if err != nil {
+		return nil, err
+	}
+
+	// >>> remove in PROD env
+	log.Printf("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
+	// <<< remove in PROD env
+
+	tokenDetail := struct {
+		TokenNumber             string
+		ExpiryMonth             string
+		paymentAccountReference string
+		dataValidUntilTimestamp string
+		PaymentAccountReference string
+	}{}
+
+	err = json.Unmarshal(decrypted, &tokenDetail)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TokenInfo{
+		TokenUniqueReference:    responseStruct.Token.TokenUniqueReference,
+		TokenPanSuffix:          responseStruct.Token.TokenInfo.TokenPanSuffix,
+		TokenExpiry:             responseStruct.Token.TokenInfo.TokenExpiry,
+		PanUniqueReference:      responseStruct.Token.PanUniqueReference,
+		PanSuffix:               responseStruct.Token.TokenInfo.AccountPanSuffix,
+		PanExpiry:               responseStruct.Token.TokenInfo.AccountPanExpiry,
+		BrandAssetID:            responseStruct.Token.ProductConfig.CardBackgroundAssetID,
+		ProductCategory:         responseStruct.Token.TokenInfo.ProductCategory,
+		DsrpCapable:             responseStruct.Token.TokenInfo.DsrpCapable,
 		PaymentAccountReference: tokenDetail.PaymentAccountReference,
 	}, nil
 }
 
 // Transact is the universal API implementation of MDES Transact API call
 func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
-	// TO DO: modify url according the environment
-	url := "https://sandbox.api.mastercard.com/mdes/remotetransaction/static/1/0/transact"
 
 	req := struct {
 		ResponseHost         string `json:"responseHost"`
@@ -338,7 +561,7 @@ func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
 
 	payload, _ := json.Marshal(req)
 
-	respone, err := m.request("POST", url, payload)
+	respone, err := m.request("POST", m.urlTransact, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -353,14 +576,18 @@ func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
 		return nil, err
 	}
 
-	decypted, err := m.decryptPayload(&responceData.EncryptedPayload)
+	decrypted, err := m.decryptPayload(&responceData.EncryptedPayload)
 	if err != nil {
 		return nil, err
 	}
 
+	// >>> remove in PROD env
+	log.Printf("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
+	// <<< remove in PROD env
+
 	returnData := CryptogramData{}
 
-	if err := json.Unmarshal(decypted, &returnData); err != nil {
+	if err := json.Unmarshal(decrypted, &returnData); err != nil {
 		return nil, err
 	}
 
@@ -369,28 +596,25 @@ func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
 
 // Suspend is the universal API implementation of MDES Suspend API call
 func (m MDESapi) Suspend(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
-	// TO DO: modify url according the environment
-	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/suspend"
 
-	return m.manageTokens(url, tokens, causedBy, reasonCode)
+	return m.manageTokens(m.urlSuspend, tokens, causedBy, reasonCode)
 }
 
 // Unsuspend is the universal API implementation of MDES Unsuspend API call
 func (m MDESapi) Unsuspend(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
-	// TO DO: modify url according the environment
-	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/unsuspend"
-	return m.manageTokens(url, tokens, causedBy, reasonCode)
+
+	return m.manageTokens(m.urlUnsuspend, tokens, causedBy, reasonCode)
 }
 
 // Delete is the universal API implementation of MDES Delete API call
 func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
-	// TO DO: modify url according the environment
-	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/delete"
-	return m.manageTokens(url, tokens, causedBy, reasonCode)
+
+	return m.manageTokens(m.urlDelete, tokens, causedBy, reasonCode)
 }
 
 // manageTokens - backend for suspend|unsuspend|delete universal API implementation of MDES Transact API calls
 func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
+
 	req := struct {
 		ResponseHost          string   `json:"responseHost"`
 		RequestID             string   `json:"requestId"`
@@ -415,7 +639,7 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 	responceData := struct {
 		Tokens []TokenStatus
 	}{
-		Tokens: make([]TokenStatus, 0),
+		Tokens: []TokenStatus{},
 	}
 
 	if err := json.Unmarshal(respone, &responceData); err != nil {
@@ -427,8 +651,8 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 
 // GetAsset is the universal API implementation of MDES GetAsset API call
 func (m MDESapi) GetAsset(assetID string) ([]MediaContent, error) {
-	url := "https://sandbox.api.mastercard.com/mdes/assets/static/1/0/asset/" + assetID
-	respone, err := m.request("GET", url, nil)
+
+	respone, err := m.request("GET", m.urlGetAssets+assetID, nil)
 	if err != nil {
 		return nil, err
 	}

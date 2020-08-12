@@ -17,35 +17,6 @@ func init() {
 	}
 }
 
-func TestDeleteRequest(t *testing.T) {
-
-	fmt.Println("________________Delete________________")
-	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/delete"
-	payload := `{
-		"responseHost" : "assist.ru",
-		"requestId" : "123456",
-		"paymentAppInstanceId" : "123456789",
-		"tokenUniqueReferences" : [
-			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
-			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",
-			"DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],
-		"causedBy" : "CARDHOLDER",
-		"reasonCode" : "DEVICE_LOST",
-		"reason" : "LOST_STOLEN_DEVICE"
-	  }`
-	_, err := mdesAPI.request("POST", url, []byte(payload))
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestGetAssetsRequest(t *testing.T) {
-	_, err := mdesAPI.request("GET", "https://sandbox.api.mastercard.com/mdes/assets/static/1/0/asset/3789637f-32a1-4810-a138-4bf34501c509", []byte(""))
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestPayloadEncryptionAndDecryption(t *testing.T) {
 
 	payload := []byte(`{
@@ -183,6 +154,32 @@ func TestTokenizeUniversalAPI(t *testing.T) {
 		},
 		"ACCOUNT_ADDED_MANUALLY", // source
 	)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Printf("Received token data:\n%v", tData)
+}
+
+func TestSearchUniversalAPI(t *testing.T) {
+	tData, err := mdesAPI.Search("98765432101", "", "",
+		CardAccountData{
+			AccountNumber: "5123456789012345",
+			ExpiryMonth:   "09",
+			ExpiryYear:    "21",
+			SecurityCode:  "123",
+		})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Printf("Received tokens data:\n%v", tData)
+}
+
+func TestGetTokenUniversalAPI(t *testing.T) {
+	tData, err := mdesAPI.GetToken("98765432101", "DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45")
 
 	if err != nil {
 		t.Fatal(err)

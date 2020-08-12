@@ -33,6 +33,8 @@ func doMain() error {
 	http.HandleFunc("/api/v1/unsuspend", unsuspendHandler)
 	http.HandleFunc("/api/v1/delete", deleteHandler)
 	http.HandleFunc("/api/v1/getassets", getAssetsHandler)
+	http.HandleFunc("/api/v1/gettoken", getTokenHandler)
+	http.HandleFunc("/api/v1/search", searchHandler)
 
 	// call-back handler
 	http.HandleFunc("/callback/mdes", notifyHandler)
@@ -53,6 +55,7 @@ func tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	reqData := struct {
 		RequestorID string
@@ -64,12 +67,14 @@ func tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 	if err = json.Unmarshal(body, &reqData); err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	tokenData, err := m.Tokenize(reqData.RequestorID, reqData.CardData, reqData.Source)
 	if err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	resp, _ := json.Marshal(tokenData)
@@ -85,17 +90,20 @@ func transactHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	reqData := mdes.TransactData{}
 	if err = json.Unmarshal(body, &reqData); err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	ransactData, err := m.Transact(reqData)
 	if err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	resp, _ := json.Marshal(ransactData)
@@ -131,6 +139,7 @@ func mangeTokens(action func([]string, string, string) ([]mdes.TokenStatus, erro
 	if err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	reqData := struct {
 		TokenUniqueReferences []string
@@ -140,12 +149,14 @@ func mangeTokens(action func([]string, string, string) ([]mdes.TokenStatus, erro
 	if err = json.Unmarshal(body, &reqData); err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	responceData, err := action(reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
 	if err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	resp, _ := json.Marshal(responceData)
@@ -160,6 +171,7 @@ func getAssetsHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	reqData := struct {
 		AssetID string
@@ -167,6 +179,7 @@ func getAssetsHandler(w http.ResponseWriter, req *http.Request) {
 	if err = json.Unmarshal(body, &reqData); err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	// TO DO: check media data existence in the cache for the given assetID.
@@ -175,6 +188,7 @@ func getAssetsHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	resp, _ := json.Marshal(struct{ MediaContents []mdes.MediaContent }{MediaContents: responce})
@@ -207,4 +221,72 @@ func notifyHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(responce)
+}
+
+func getTokenHandler(w http.ResponseWriter, req *http.Request) {
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		// TO DO: provide more error details
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("body: %s", string(body))
+
+	reqData := struct {
+		RequestorID          string
+		TokenUniqueReference string
+	}{}
+
+	if err = json.Unmarshal(body, &reqData); err != nil {
+		// TO DO: provide more error details
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("TUR: %s, RID: %s", reqData.TokenUniqueReference, reqData.RequestorID)
+
+	responceData, err := m.GetToken(reqData.RequestorID, reqData.TokenUniqueReference)
+	if err != nil {
+		// TO DO: provide more error details
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	resp, _ := json.Marshal(responceData)
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(resp)
+
+}
+
+func searchHandler(w http.ResponseWriter, req *http.Request) {
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		// TO DO: provide more error details
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	reqData := struct {
+		RequestorID           string
+		TokenUniqueReferences string
+		PanUniqueReference    string
+		CardData              mdes.CardAccountData
+	}{}
+
+	if err = json.Unmarshal(body, &reqData); err != nil {
+		// TO DO: provide more error details
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	responceData, err := m.Search(reqData.RequestorID, reqData.TokenUniqueReferences, reqData.PanUniqueReference, reqData.CardData)
+	if err != nil {
+		// TO DO: provide more error details
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	resp, _ := json.Marshal(responceData)
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(resp)
+
 }
