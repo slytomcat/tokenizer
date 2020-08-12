@@ -7,6 +7,10 @@ import (
 	"testing"
 )
 
+var (
+	mdesAPI *MDESapi
+)
+
 func init() {
 	log.SetFlags(log.Lmicroseconds)
 

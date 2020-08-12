@@ -71,6 +71,31 @@ func TestMain(m *testing.M) {
 	os.Exit(tErr)
 }
 
+func requst(url string, payload []byte) ([]byte, error) {
+	request, _ := http.NewRequest("POST", url, bytes.NewReader(payload))
+	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("Accept", "application/json")
+
+	log.Printf("    <<<<<<<    Request URL: %s\n", url)
+	log.Printf("    <<<<<<<    Request Body:\n%s\n", payload)
+
+	responce, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("request sending error: %w", err)
+	}
+	defer responce.Body.Close()
+
+	body, err := ioutil.ReadAll(responce.Body)
+	if err != nil {
+		return nil, fmt.Errorf("responce body reading error: %w", err)
+	}
+
+	output := outputRe.ReplaceAll(body, []byte(`"data":"--<--data skiped-->--"`))
+	log.Printf("\n    >>>>>>>    Response: %s\n%s\n", responce.Status, output)
+
+	return body, nil
+}
+
 func TestTokenize(t *testing.T) {
 	_, err := requst("http://localhost:8080/api/v1/tokenize",
 		[]byte(`{"requestorid":"123454","carddata":{"accountNumber":"5123456789012345","expiryMonth":"09","expiryYear":"21","securityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}`),
@@ -132,27 +157,20 @@ func TestNotify(t *testing.T) {
 	}
 }
 
-func requst(url string, payload []byte) ([]byte, error) {
-	request, _ := http.NewRequest("POST", url, bytes.NewReader(payload))
-	request.Header.Add("Content-Type", "application/json")
-	request.Header.Add("Accept", "application/json")
-
-	log.Printf("    <<<<<<<    Request URL: %s\n", url)
-	log.Printf("    <<<<<<<    Request Body:\n%s\n", payload)
-
-	responce, err := http.DefaultClient.Do(request)
+func TestSearch(t *testing.T) {
+	_, err := requst("http://localhost:8080/api/v1/search",
+		[]byte(`{"requestorid":"98765432101","carddata":{"accountNumber":"5123456789012345","expiryMonth":"09","expiryYear":"21","securityCode":"123"}}`),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("request sending error: %w", err)
+		t.Fatal(err)
 	}
-	defer responce.Body.Close()
+}
 
-	body, err := ioutil.ReadAll(responce.Body)
+func TestGetToken(t *testing.T) {
+	_, err := requst("http://localhost:8080/api/v1/gettoken",
+		[]byte(`{"requestorid":"98765432101","tokenUniqueReference":"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45"}`),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("responce body reading error: %w", err)
+		t.Fatal(err)
 	}
-
-	output := outputRe.ReplaceAll(body, []byte(`"data":"--<--data skiped-->--"`))
-	log.Printf("\n    >>>>>>>    Response: %s\n%s\n", responce.Status, output)
-
-	return body, nil
 }

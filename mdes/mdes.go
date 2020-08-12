@@ -20,10 +20,6 @@ import (
 	oauth "github.com/mastercard/oauth1-signer-go"
 )
 
-var (
-	mdesAPI *MDESapi
-)
-
 // MDESapi TokenizerAPI implementation for MasterCard MDES Digital enabled API
 type MDESapi struct {
 	oAuthSigner        *oauth.Signer
