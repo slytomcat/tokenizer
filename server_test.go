@@ -76,8 +76,8 @@ func requst(url string, payload []byte) ([]byte, error) {
 	request.Header.Add("Content-Type", "application/json")
 	request.Header.Add("Accept", "application/json")
 
-	log.Printf("    <<<<<<<    Request URL: %s\n", url)
-	log.Printf("    <<<<<<<    Request Body:\n%s\n", payload)
+	log.Printf("    >>>>>>>    Request URL: %s\n", url)
+	log.Printf("    >>>>>>>    Request Body:\n%s\n", payload)
 
 	responce, err := http.DefaultClient.Do(request)
 	if err != nil {
@@ -91,7 +91,7 @@ func requst(url string, payload []byte) ([]byte, error) {
 	}
 
 	output := outputRe.ReplaceAll(body, []byte(`"data":"--<--data skiped-->--"`))
-	log.Printf("\n    >>>>>>>    Response: %s\n%s\n", responce.Status, output)
+	log.Printf("    <<<<<<<    Response: %s\n%s\n", responce.Status, output)
 
 	return body, nil
 }

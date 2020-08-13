@@ -123,7 +123,7 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 	}
 
 	output := m.ourputRe.ReplaceAll(body, []byte(`"data":"--<--data skiped-->--"`))
-	log.Printf("\n    >>>>>>>    Response: %s\n%s\n", responce.Status, output)
+	log.Printf("    >>>>>>>    Response: %s\n%s\n", responce.Status, output)
 
 	return body, nil
 }
