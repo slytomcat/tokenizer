@@ -81,7 +81,7 @@ func requst(url string, payload []byte) ([]byte, error) {
 
 	responce, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("request sending error: %w", err)
+		return nil, fmt.Errorf("request forwarding error: %w", err)
 	}
 	defer responce.Body.Close()
 

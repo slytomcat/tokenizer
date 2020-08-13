@@ -346,40 +346,40 @@ func (m MDESapi) Search(RequestorID, tokenURef, panURef string, cardData CardAcc
 	respHost := "assist.ru"
 	payload := []byte{}
 	switch {
-	case tokenURef != "":
-		type td struct {
-			TokenUniqueReference string `json:"tokenUniqueReference"`
-		}
-		payload, _ = json.Marshal(struct {
-			RequestID          string `json:"requestId"`
-			ResponseHost       string `json:"responseHost"`
-			TokenRequestorID   string `json:"tokenRequestorId"`
-			FundingAccountInfo td     `json:"fundingAccountInfo"`
-		}{
-			RequestID:        reqID,
-			ResponseHost:     respHost,
-			TokenRequestorID: RequestorID,
-			FundingAccountInfo: td{
-				TokenUniqueReference: tokenURef,
-			},
-		})
-	case panURef != "":
-		type td struct {
-			PanUniqueReference string `json:"panUniqueReference"`
-		}
-		payload, _ = json.Marshal(struct {
-			RequestID          string `json:"requestId"`
-			ResponseHost       string `json:"responseHost"`
-			TokenRequestorID   string `json:"tokenRequestorId"`
-			FundingAccountInfo td     `json:"fundingAccountInfo"`
-		}{
-			RequestID:        reqID,
-			ResponseHost:     respHost,
-			TokenRequestorID: RequestorID,
-			FundingAccountInfo: td{
-				PanUniqueReference: panURef,
-			},
-		})
+	// case tokenURef != "":
+	// 	type td struct {
+	// 		TokenUniqueReference string `json:"tokenUniqueReference"`
+	// 	}
+	// 	payload, _ = json.Marshal(struct {
+	// 		RequestID          string `json:"requestId"`
+	// 		ResponseHost       string `json:"responseHost"`
+	// 		TokenRequestorID   string `json:"tokenRequestorId"`
+	// 		FundingAccountInfo td     `json:"fundingAccountInfo"`
+	// 	}{
+	// 		RequestID:        reqID,
+	// 		ResponseHost:     respHost,
+	// 		TokenRequestorID: RequestorID,
+	// 		FundingAccountInfo: td{
+	// 			TokenUniqueReference: tokenURef,
+	// 		},
+	// 	})
+	// case panURef != "":
+	// 	type td struct {
+	// 		PanUniqueReference string `json:"panUniqueReference"`
+	// 	}
+	// 	payload, _ = json.Marshal(struct {
+	// 		RequestID          string `json:"requestId"`
+	// 		ResponseHost       string `json:"responseHost"`
+	// 		TokenRequestorID   string `json:"tokenRequestorId"`
+	// 		FundingAccountInfo td     `json:"fundingAccountInfo"`
+	// 	}{
+	// 		RequestID:        reqID,
+	// 		ResponseHost:     respHost,
+	// 		TokenRequestorID: RequestorID,
+	// 		FundingAccountInfo: td{
+	// 			PanUniqueReference: panURef,
+	// 		},
+	// 	})
 	case cardData.AccountNumber != "":
 
 		payloadToEncrypt, _ := json.Marshal(struct {

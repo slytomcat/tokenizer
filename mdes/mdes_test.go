@@ -62,8 +62,6 @@ func TestPayloadEncryptionAndDecryption(t *testing.T) {
 
 func TestEncryptAndDecryptTokenizeRequest(t *testing.T) {
 
-	fmt.Println("________________Tokenize________________")
-
 	url := "https://sandbox.api.mastercard.com/mdes/digitization/static/1/0/tokenize"
 	payload := `{
 	"responseHost": "assist.ru",
@@ -113,8 +111,6 @@ func TestEncryptAndDecryptTokenizeRequest(t *testing.T) {
 }
 
 func TestTransactRequestDecryption(t *testing.T) {
-
-	fmt.Println("________________Transact________________")
 
 	url := "https://sandbox.api.mastercard.com/mdes/remotetransaction/static/1/0/transact"
 	payload := `{
