@@ -1,0 +1,23 @@
+{
+    "API":
+        {
+            "HostPort":"localhost:8080",
+            "Cert":"<path to TLS certificate>",
+            "Key":"<path to TLS key>"
+        },
+    "DB":
+        {
+            "Addrs": [ "<host:port of Redis server>" ],
+            "Password": "<long password for Redis connection>"
+        },
+    "MDES":
+        {
+            "System":"<one of: SandBox|MTF|PROD>",
+            "EndPont":"<Endpoint cofigured for nitifications receivig from MDES site>",
+            "SignKey":"<path to signing key p12 safe>",
+            "EcryptKey":"<path to certificate with key for encryption >",
+            "EncrypKeyFp":"<Fingerpring of encryption key>",
+            "DecryptKey":"<path to decryption key p12 safe>",
+            "APIKey":"<consumer key from MC developer portal project>"
+        }
+}
