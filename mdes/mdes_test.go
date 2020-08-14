@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"log"
 	"testing"
+	"time"
+
+	"github.com/slytomcat/tokenizer/database"
 )
 
 var (
@@ -24,11 +27,23 @@ func init() {
 		APIKey:      "NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000",
 	}
 
-	var err error
+	DB := database.DBConf{
+		Addrs:    []string{"s-t-c.tk:6379"},
+		Password: "testtesttesttest+CC5l0^B4ffFe7fN0-tlnpTp63wb-GxAZs",
+	}
 
-	if mdesAPI, err = NewMDESapi(&confMDES); err != nil {
+	// connect to databse
+	db, err := database.Init(&DB)
+	if err != nil {
 		panic(err)
 	}
+
+	if mdesAPI, err = NewMDESapi(&confMDES, db); err != nil {
+		panic(err)
+	}
+
+	// clear assets cache
+	db.Del("3789637f-32a1-4810-a138-4bf34501c509")
 }
 
 func TestPayloadEncryptionAndDecryption(t *testing.T) {
@@ -265,6 +280,8 @@ func TestDeleteUniversalAPI(t *testing.T) {
 }
 
 func TestGetAssetUniversalAPI(t *testing.T) {
+	log.Println("___________First request ________________")
+
 	assets, err := mdesAPI.GetAsset("3789637f-32a1-4810-a138-4bf34501c509")
 	if err != nil {
 		t.Fatal(err)
@@ -272,6 +289,18 @@ func TestGetAssetUniversalAPI(t *testing.T) {
 	// too long output
 	//log.Printf("Received data:\n%v", assets)
 	log.Printf("Media data received. Payload items: %d", len(assets))
+	//
+	time.Sleep(time.Second) // wait for first request to cache data
+	// repeat request to chek the cache
+	log.Println("___________Second request ________________")
+	assets, err = mdesAPI.GetAsset("3789637f-32a1-4810-a138-4bf34501c509")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// too long output
+	//log.Printf("Received data:\n%v", assets)
+	log.Printf("Media data received. Payload items: %d", len(assets))
+
 }
 
 func TestNotifyMDES(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v7"
 	database "github.com/slytomcat/tokenizer/database"
 	"github.com/slytomcat/tokenizer/mdes"
 	tools "github.com/slytomcat/tokenizer/tools"
@@ -18,7 +18,7 @@ import (
 
 var (
 	m  *mdes.MDESapi
-	db *redis.UniversalClient
+	db redis.UniversalClient
 	// ConfigFile - is the path to the configuration file
 	configFile        = flag.String("config", "./config.json", "`path` to the configuration file")
 	version    string = "unknown version"
@@ -81,15 +81,16 @@ func main() {
 }
 
 func doMain(config *Config) error {
-	// create MasterCard MDES protocol convertor instance
-	var err error
-	if m, err = mdes.NewMDESapi(&config.MDES); err != nil {
-		return err
-	}
 
 	// connect to databse
 	db, err = database.Init(&config.DB)
 	if err != nil {
+		return err
+	}
+
+	// create MasterCard MDES protocol convertor instance
+	var err error
+	if m, err = mdes.NewMDESapi(&config.MDES, db); err != nil {
 		return err
 	}
 

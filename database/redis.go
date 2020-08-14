@@ -10,8 +10,13 @@ type DBConf struct {
 	Password string
 }
 
+// DBConnect - data base connection
+type DBConnect struct {
+	redis.UniversalClient
+}
+
 // Init creates DB connection
-func Init(conf *DBConf) (*redis.UniversalClient, error) {
+func Init(conf *DBConf) (redis.UniversalClient, error) {
 
 	db := redis.NewUniversalClient(&redis.UniversalOptions{
 		Addrs:    conf.Addrs,
@@ -23,5 +28,5 @@ func Init(conf *DBConf) (*redis.UniversalClient, error) {
 		return nil, err
 	}
 
-	return &db, nil
+	return DBConnect{db}, nil
 }

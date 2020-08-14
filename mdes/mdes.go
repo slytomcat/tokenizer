@@ -16,7 +16,9 @@ import (
 	"net/http"
 	"regexp"
 	"sync"
+	"time"
 
+	"github.com/go-redis/redis/v7"
 	oauth "github.com/mastercard/oauth1-signer-go"
 )
 
@@ -47,6 +49,7 @@ type MDESapi struct {
 	urlGetAssets       string
 	urlGetToken        string
 	urlSearch          string
+	db                 redis.UniversalClient
 }
 
 // encryptedPayload structure of encrypted payload of MDES API
@@ -59,7 +62,7 @@ type encryptedPayload struct {
 }
 
 // NewMDESapi creates new MDESapi implementation
-func NewMDESapi(conf *MDESconf) (*MDESapi, error) {
+func NewMDESapi(conf *MDESconf, db redis.UniversalClient) (*MDESapi, error) {
 	// TO DO: run KeyExchangeManager goroutine ho handle key renewal process
 	// c := make(chan os.Signal, 1)
 	// signal.Notify(c, syscall.SIGUSR1)
@@ -75,7 +78,9 @@ func NewMDESapi(conf *MDESconf) (*MDESapi, error) {
 
 	mAPI := &MDESapi{
 		mutex: &sync.RWMutex{}, // RWmutex requered for KeyExchangeManager
+		db:    db,
 	}
+
 	var err error
 	mAPI.ourputRe, err = regexp.Compile(`"data":"[^"]*"`)
 	if err != nil {
@@ -342,6 +347,8 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 	if err != nil {
 		return nil, err
 	}
+	// run background assets loading to cache
+	go m.cacheAssetMedia(responseStruct.ProductConfig.CardBackgroundCombinedAssetID)
 
 	return &TokenInfo{
 		TokenUniqueReference:    responseStruct.TokenUniqueReference,
@@ -350,7 +357,7 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 		PanUniqueReference:      responseStruct.PanUniqueReference,
 		PanSuffix:               responseStruct.TokenInfo.AccountPanSuffix,
 		PanExpiry:               responseStruct.TokenInfo.AccountPanExpiry,
-		BrandAssetID:            responseStruct.ProductConfig.CardBackgroundAssetID,
+		BrandAssetID:            responseStruct.ProductConfig.CardBackgroundCombinedAssetID,
 		ProductCategory:         responseStruct.TokenInfo.ProductCategory,
 		DsrpCapable:             responseStruct.TokenInfo.DsrpCapable,
 		PaymentAccountReference: tokenDetail.PaymentAccountReference,
@@ -523,6 +530,9 @@ func (m MDESapi) GetToken(RequestorID, tokenURef string) (*TokenInfo, error) {
 		return nil, err
 	}
 
+	// run background assets loading to cache
+	go m.cacheAssetMedia(responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID)
+
 	decrypted, err := m.decryptPayload(&responseStruct.TokenDetail)
 	if err != nil {
 		return nil, err
@@ -667,20 +677,42 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 // GetAsset is the universal API implementation of MDES GetAsset API call
 func (m MDESapi) GetAsset(assetID string) ([]MediaContent, error) {
 
-	respone, err := m.request("GET", m.urlGetAssets+assetID, nil)
-	if err != nil {
-		return nil, err
-	}
+	var responce []byte
 
+	if data, err := m.db.Get(assetID).Result(); err == nil {
+		log.Printf("media for assedID: %s receved from cache", assetID)
+		responce = []byte(data)
+	} else {
+		responce, err = m.cacheAssetMedia(assetID)
+		if err != nil {
+			return nil, err
+		}
+	}
 	responceData := struct {
 		MediaContents []MediaContent
 	}{}
 
-	if err := json.Unmarshal(respone, &responceData); err != nil {
+	if err := json.Unmarshal(responce, &responceData); err != nil {
 		return nil, err
 	}
 
 	return responceData.MediaContents, nil
+}
+
+func (m MDESapi) cacheAssetMedia(assetID string) ([]byte, error) {
+	if assetID == "" {
+		log.Println("no assetID to get")
+		return nil, errors.New("no assetID to get")
+	}
+	responce, err := m.request("GET", m.urlGetAssets+assetID, nil)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		m.db.Set(assetID, string(responce), time.Duration(time.Hour*8760)) //1  year expiration
+		log.Printf("media for assetID: %s stored to cache", assetID)
+	}()
+	return responce, nil
 }
 
 // Notify is call-back handler
