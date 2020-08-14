@@ -2,27 +2,87 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/slytomcat/tokenizer/mdes"
 )
 
 var (
 	m *mdes.MDESapi
+	// ConfigFile - is the path to the configuration file
+	configFile        = flag.String("config", "./config.json", "`path` to the configuration file")
+	version    string = "unknown version"
 )
 
+func init() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "\nUsage:\t"+filepath.Base(os.Args[0])+" [-config=<Path/to/config.json>]\n\nOptions:\n")
+		flag.PrintDefaults()
+	}
+}
+
+// APIconf configuration for API
+type APIconf struct {
+	HostPort string
+	Cert     string
+	Key      string
+}
+
+// Config is the service configuration values set
+type Config struct {
+	API  APIconf
+	MDES mdes.MDESconf
+	//VISA - section for VISA configuration values
+}
+
+func getConfig(path string) *Config {
+	// create config with default values
+	configData := Config{
+		API: APIconf{
+			HostPort: "localhost:8080",
+		},
+		MDES: mdes.MDESconf{
+			Sustem:      "SandBox",
+			EndPont:     "/callback/mdes",
+			SignKey:     "mdes/SandBoxKeys/SandBox.p12",
+			EcryptKey:   "mdes/SandBoxKeys/164401.crt",
+			EncrypKeyFp: "243e6992ea467f1cbb9973facfcc3bf17b5cd007",
+			DecryptKey:  "mdes/SandBoxKeys/key.p12",
+			APIKey:      "NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000",
+		},
+	}
+
+	file, err := mdes.ReadFile(path)
+	if err == nil {
+		err = json.Unmarshal(file, &configData)
+	}
+	if err != nil {
+		log.Printf("config file opening/parsing error: %v", err)
+	}
+
+	log.Printf("configuration: %+v", configData)
+
+	return &configData
+}
+
 func main() {
-	if err := doMain(); err != nil {
+	flag.Parse()
+
+	if err := doMain(getConfig(*configFile)); err != nil {
 		panic(err)
 	}
 }
 
-func doMain() error {
+func doMain(config *Config) error {
 	// create MasterCard MDES protocol convertor instance
 	var err error
-	if m, err = mdes.NewMDESapi("mdes/SandBoxKeys"); err != nil {
+	if m, err = mdes.NewMDESapi(&config.MDES); err != nil {
 		return err
 	}
 
@@ -43,7 +103,7 @@ func doMain() error {
 
 	// TO DO: make TLS server
 	// TO DO: decide where to store certificates and how to update them (when they are in filesytem then the reboot of service requered)
-	// return http.ListenAndServeTLS(":8080", certFilePath, KeyFilePath nil)
+	// return http.ListenAndServeTLS(":8080", certFilePath, KeyFilePath, nil)
 	return http.ListenAndServe(":8080", nil)
 }
 

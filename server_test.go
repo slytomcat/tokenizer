@@ -48,7 +48,7 @@ var (
 func TestMain(m *testing.M) {
 	// preporations
 	go func() {
-		err := doMain()
+		err := doMain(getConfig(*configFile))
 		if err != nil {
 			panic(err)
 		}

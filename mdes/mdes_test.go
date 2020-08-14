@@ -14,9 +14,19 @@ var (
 func init() {
 	log.SetFlags(log.Lmicroseconds)
 
+	confMDES := MDESconf{
+		Sustem:      "SandBox",
+		EndPont:     "/callback/mdes",
+		SignKey:     "SandBoxKeys/SandBox.p12",
+		EcryptKey:   "SandBoxKeys/164401.crt",
+		EncrypKeyFp: "243e6992ea467f1cbb9973facfcc3bf17b5cd007",
+		DecryptKey:  "SandBoxKeys/key.p12",
+		APIKey:      "NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000",
+	}
+
 	var err error
 
-	if mdesAPI, err = NewMDESapi("SandBoxKeys"); err != nil {
+	if mdesAPI, err = NewMDESapi(&confMDES); err != nil {
 		panic(err)
 	}
 }

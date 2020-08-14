@@ -20,6 +20,17 @@ import (
 	oauth "github.com/mastercard/oauth1-signer-go"
 )
 
+// MDESconf configuration for MDES
+type MDESconf struct {
+	Sustem      string
+	EndPont     string
+	SignKey     string
+	EcryptKey   string
+	EncrypKeyFp string
+	DecryptKey  string
+	APIKey      string
+}
+
 // MDESapi TokenizerAPI implementation for MasterCard MDES Digital enabled API
 type MDESapi struct {
 	oAuthSigner        *oauth.Signer
@@ -48,7 +59,7 @@ type encryptedPayload struct {
 }
 
 // NewMDESapi creates new MDESapi implementation
-func NewMDESapi(path string) (*MDESapi, error) {
+func NewMDESapi(conf *MDESconf) (*MDESapi, error) {
 	// TO DO: run KeyExchangeManager goroutine ho handle key renewal process
 	// c := make(chan os.Signal, 1)
 	// signal.Notify(c, syscall.SIGUSR1)
@@ -71,14 +82,22 @@ func NewMDESapi(path string) (*MDESapi, error) {
 		log.Printf("regexp creation error: %v", err)
 	}
 
-	// TO DO: read path from config or load keys from DB
-	if err := mAPI.initKeys(path); err != nil {
+	if err := mAPI.initKeys(conf); err != nil {
 		return nil, err
 	}
 
-	// TO DO: read env and sys from config
-	MDESenv := "static/"  // can be "mtf/" or "" for PROD
-	MDESsys := "sandbox." // can be "" for MTF and PROD
+	MDESenv, MDESsys := "", ""
+	switch conf.Sustem {
+	case "SandBox":
+		MDESenv = "static/"  // can be "mtf/" or "" for PROD
+		MDESsys = "sandbox." // can be "" for MTF and PROD
+	case "MTF":
+		MDESenv = "mtf/"
+		MDESsys = ""
+	case "PROD":
+		MDESenv = ""
+		MDESsys = ""
+	}
 
 	mAPI.urlTokenize = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/tokenize", MDESsys, MDESenv)
 	mAPI.urlTransact = fmt.Sprintf("https://%sapi.mastercard.com/mdes/remotetransaction/%s1/0/transact", MDESsys, MDESenv)

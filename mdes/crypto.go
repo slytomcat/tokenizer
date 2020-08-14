@@ -11,10 +11,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path"
 
 	oauth "github.com/mastercard/oauth1-signer-go"
 	"github.com/mastercard/oauth1-signer-go/utils"
+	"github.com/slytomcat/tokenizer/tools"
 )
 
 // getRandom returns the specified number of random bytes or error
@@ -103,27 +103,25 @@ func (m MDESapi) encryptKey() (*rsa.PublicKey, string) {
 	return m.storedEncryptKey, m.storedEncryptKeyFP
 }
 
-func (m *MDESapi) initKeys(pathToKeys string) error {
-	// TO DO: store keys in to DB and organize the keys exchange
-
-	// TO DO:  store consumer key in config
-	consumerKey := "NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000"
+func (m *MDESapi) initKeys(conf *MDESconf) error {
 
 	// load signing key
-	signingKey, err := utils.LoadSigningKey(path.Join(pathToKeys, "SandBox.p12"), "keyst0repassw0rd")
+	// TO DO get password from secure storage
+	signingKey, err := utils.LoadSigningKey(conf.SignKey, "keyst0repassw0rd")
 	if err != nil {
 		return err
 	}
 
-	m.oAuthSigner = &oauth.Signer{ConsumerKey: consumerKey, SigningKey: signingKey}
+	m.oAuthSigner = &oauth.Signer{ConsumerKey: conf.APIKey, SigningKey: signingKey}
 
-	m.storedDecryptKey, err = utils.LoadSigningKey(path.Join(pathToKeys, "key.p12"), "keystorepassword")
+	// TO DO get password from secure storage
+	m.storedDecryptKey, err = utils.LoadSigningKey(conf.DecryptKey, "keystorepassword")
 	if err != nil {
 		return err
 	}
 
 	// load encryption public key
-	encryptKeyData, err := readFile(path.Join(pathToKeys, "164401.crt"))
+	encryptKeyData, err := tools.ReadFile(conf.EcryptKey)
 	if err != nil {
 		return err
 	}
@@ -138,7 +136,6 @@ func (m *MDESapi) initKeys(pathToKeys string) error {
 		return errors.New("can't convert public key from certificate")
 	}
 	// TO DO: load fingerprint from key storage
-	m.storedEncryptKeyFP = "243e6992ea467f1cbb9973facfcc3bf17b5cd007"
-
+	m.storedEncryptKeyFP = conf.EncrypKeyFp
 	return nil
 }
