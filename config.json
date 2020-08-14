@@ -5,6 +5,11 @@
             "Cert":"",
             "Key":""
         },
+    "DB":
+        {
+            "Addrs": [ "s-t-c.tk:6379" ],
+            "Password": "testtesttesttest+CC5l0^B4ffFe7fN0-tlnpTp63wb-GxAZs"
+        },
     "MDES":
         {
             "System":"SandBox",

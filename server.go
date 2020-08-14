@@ -10,18 +10,22 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/go-redis/redis"
+	database "github.com/slytomcat/tokenizer/database"
 	"github.com/slytomcat/tokenizer/mdes"
 	tools "github.com/slytomcat/tokenizer/tools"
 )
 
 var (
-	m *mdes.MDESapi
+	m  *mdes.MDESapi
+	db *redis.UniversalClient
 	// ConfigFile - is the path to the configuration file
 	configFile        = flag.String("config", "./config.json", "`path` to the configuration file")
 	version    string = "unknown version"
 )
 
 func init() {
+	log.SetFlags(log.Ldate & log.Lmicroseconds)
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\nUsage:\t"+filepath.Base(os.Args[0])+" [-config=<Path/to/config.json>]\n\nOptions:\n")
 		flag.PrintDefaults()
@@ -38,8 +42,9 @@ type APIconf struct {
 // Config is the service configuration values set
 type Config struct {
 	API  APIconf
+	DB   database.DBConf
 	MDES mdes.MDESconf
-	//VISA - section for VISA configuration values
+	//VISA - section for future VISA configuration values
 }
 
 func getConfig(path string) *Config {
@@ -82,7 +87,15 @@ func doMain(config *Config) error {
 		return err
 	}
 
-	// API functions
+	// connect to databse
+	db, err = database.Init(&config.DB)
+	if err != nil {
+		return err
+	}
+
+	// start service handlers
+
+	// register API functions
 	http.HandleFunc("/api/v1/tokenize", tokenizeHandler)
 	http.HandleFunc("/api/v1/transact", transactHandler)
 	http.HandleFunc("/api/v1/suspend", suspendHandler)
@@ -92,8 +105,8 @@ func doMain(config *Config) error {
 	http.HandleFunc("/api/v1/gettoken", getTokenHandler)
 	http.HandleFunc("/api/v1/search", searchHandler)
 
-	// call-back handler
-	http.HandleFunc("/callback/mdes", notifyHandler)
+	// register call-back handler
+	http.HandleFunc(config.MDES.EndPont, notifyHandler)
 
 	if config.API.Cert != "" && config.API.Key != "" {
 		log.Println("INFO: starting TLS server at", config.API.HostPort)
