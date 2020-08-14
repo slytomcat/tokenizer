@@ -1,9 +1,9 @@
 {
     "API":
         {
-            "HostPort":"localhost:8080",
-            "Cert":"<path to TLS certificate>",
-            "Key":"<path to TLS key>"
+            "HostPort":"<host:port to start service>",
+            "Cert":"<path to TLS certificate, if empty the service starts without TLS>",
+            "Key":"<path to TLS key, if empty the service starts without TLS>"
         },
     "DB":
         {

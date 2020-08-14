@@ -203,7 +203,7 @@ func deleteHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 // common handler for Suspens|Unsuspend|Delete API calls
-func mangeTokens(action func([]string, string, string) ([]mdes.TokenStatus, error), w http.ResponseWriter, req *http.Request) {
+func mangeTokens(action func([]string, string, string) ([]mdes.MCTokenStatus, error), w http.ResponseWriter, req *http.Request) {
 
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -252,8 +252,6 @@ func getAssetsHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// TO DO: check media data existence in the cache for the given assetID.
-
 	responce, err := m.GetAsset(reqData.AssetID)
 	if err != nil {
 		// TO DO: provide more error details
@@ -261,7 +259,7 @@ func getAssetsHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	resp, _ := json.Marshal(struct{ MediaContents []mdes.MediaContent }{MediaContents: responce})
+	resp, _ := json.Marshal(responce)
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(resp)
 }

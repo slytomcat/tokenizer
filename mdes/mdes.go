@@ -228,7 +228,7 @@ func (m MDESapi) decryptPayload(ePayload *encryptedPayload) ([]byte, error) {
 }
 
 // Tokenize is the universal API implementation of MDES Tokenize API call
-func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source string) (*TokenInfo, error) {
+func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source string) (*MCTokenInfo, error) {
 
 	payloadToEncrypt, _ := json.Marshal(struct {
 		CardAccountData CardAccountData `json:"cardAccountData"`
@@ -280,41 +280,10 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 			Type  string
 			Value string
 		}
-		TokenUniqueReference string
-		PanUniqueReference   string
-		Status               string
-		StatusTimestamp      string
-		ProductConfig        struct {
-			BrandLogoAssetID              string
-			IssuerLogoAssetID             string
-			IsCoBranded                   string
-			CoBrandName                   string
-			CoBrandLogoAssetID            string
-			CardBackgroundCombinedAssetID string
-			CardBackgroundAssetID         string
-			IconAssetID                   string
-			ForegroundColor               string
-			IssuerName                    string
-			ShortDescription              string
-			LongDescription               string
-			CustomerServiceURL            string
-			CustomerServiceEmail          string
-			CustomerServicePhoneNumber    string
-			OonlineBankingLoginURL        string
-			TermsAndConditionsURL         string
-			PrivacyPolicyURL              string
-			IssuerProductConfigCode       string
-		}
-		TokenInfo struct {
-			TokenPanSuffix      string
-			AccountPanSuffix    string
-			TokenExpiry         string
-			AccountPanExpiry    string
-			DsrpCapable         bool
-			TokenAssuranceLevel int
-			ProductCategory     string
-		}
-		TokenDetail encryptedPayload
+		MCTokenStatus
+		ProductConfig MCProductConfig
+		TokenInfo     MCTokenInfo
+		TokenDetail   encryptedPayload
 	}{}
 
 	if err := json.Unmarshal(response, &responseStruct); err != nil {
@@ -347,16 +316,19 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 	if err != nil {
 		return nil, err
 	}
-	// run background assets loading to cache
+	// run assets loading to cache in separate goroutine
 	go m.cacheAssetMedia(responseStruct.ProductConfig.CardBackgroundCombinedAssetID)
 
-	return &TokenInfo{
+	// TO DO: store token data in separate goroutine
+	// go storeTokenData(System, RequestorID, responseStruct, tokenDetail)
+
+	return &MCTokenInfo{
 		TokenUniqueReference:    responseStruct.TokenUniqueReference,
 		TokenPanSuffix:          responseStruct.TokenInfo.TokenPanSuffix,
 		TokenExpiry:             responseStruct.TokenInfo.TokenExpiry,
-		PanUniqueReference:      responseStruct.PanUniqueReference,
-		PanSuffix:               responseStruct.TokenInfo.AccountPanSuffix,
-		PanExpiry:               responseStruct.TokenInfo.AccountPanExpiry,
+		PanUniqueReference:      responseStruct.TokenInfo.PanUniqueReference,
+		PanSuffix:               responseStruct.TokenInfo.PanSuffix,
+		PanExpiry:               responseStruct.TokenInfo.PanExpiry,
 		BrandAssetID:            responseStruct.ProductConfig.CardBackgroundCombinedAssetID,
 		ProductCategory:         responseStruct.TokenInfo.ProductCategory,
 		DsrpCapable:             responseStruct.TokenInfo.DsrpCapable,
@@ -365,7 +337,7 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 }
 
 // Search is the universal API implementation of MDES SearchToken API call
-func (m MDESapi) Search(RequestorID, tokenURef, panURef string, cardData CardAccountData) ([]TokenStatus, error) {
+func (m MDESapi) Search(RequestorID, tokenURef, panURef string, cardData CardAccountData) ([]MCTokenStatus, error) {
 
 	// TO DO: generate random ID
 	reqID := "123456"
@@ -446,9 +418,9 @@ func (m MDESapi) Search(RequestorID, tokenURef, panURef string, cardData CardAcc
 	}
 
 	responseData := struct {
-		Tokens []TokenStatus
+		Tokens []MCTokenStatus
 	}{
-		Tokens: []TokenStatus{},
+		Tokens: []MCTokenStatus{},
 	}
 
 	if err := json.Unmarshal(response, &responseData); err != nil {
@@ -459,7 +431,7 @@ func (m MDESapi) Search(RequestorID, tokenURef, panURef string, cardData CardAcc
 }
 
 // GetToken is the universal API implementation of MDES SearchToken API call
-func (m MDESapi) GetToken(RequestorID, tokenURef string) (*TokenInfo, error) {
+func (m MDESapi) GetToken(RequestorID, tokenURef string) (*MCTokenInfo, error) {
 
 	// TO DO: generate random ID
 	reqID := "123456"
@@ -487,41 +459,9 @@ func (m MDESapi) GetToken(RequestorID, tokenURef string) (*TokenInfo, error) {
 	}
 	responseStruct := struct {
 		Token struct {
-			TokenUniqueReference string
-			PanUniqueReference   string
-			Status               string
-			StatusTimestamp      string
-			ProductConfig        struct {
-				BrandLogoAssetID              string
-				IssuerLogoAssetID             string
-				IsCoBranded                   string
-				CoBrandName                   string
-				CoBrandLogoAssetID            string
-				CardBackgroundCombinedAssetID string
-				CardBackgroundAssetID         string
-				IconAssetID                   string
-				ForegroundColor               string
-				IssuerName                    string
-				ShortDescription              string
-				LongDescription               string
-				CustomerServiceURL            string
-				CustomerServiceEmail          string
-				CustomerServicePhoneNumber    string
-				OonlineBankingLoginURL        string
-				TermsAndConditionsURL         string
-				PrivacyPolicyURL              string
-				IssuerProductConfigCode       string
-			}
-
-			TokenInfo struct {
-				TokenPanSuffix      string
-				AccountPanSuffix    string
-				TokenExpiry         string
-				AccountPanExpiry    string
-				DsrpCapable         bool
-				TokenAssuranceLevel int
-				ProductCategory     string
-			}
+			MCTokenStatus
+			ProductConfig MCProductConfig
+			TokenInfo     MCTokenInfo
 		}
 		TokenDetail encryptedPayload
 	}{}
@@ -555,14 +495,14 @@ func (m MDESapi) GetToken(RequestorID, tokenURef string) (*TokenInfo, error) {
 		return nil, err
 	}
 
-	return &TokenInfo{
+	return &MCTokenInfo{
 		TokenUniqueReference:    responseStruct.Token.TokenUniqueReference,
 		TokenPanSuffix:          responseStruct.Token.TokenInfo.TokenPanSuffix,
 		TokenExpiry:             responseStruct.Token.TokenInfo.TokenExpiry,
-		PanUniqueReference:      responseStruct.Token.PanUniqueReference,
-		PanSuffix:               responseStruct.Token.TokenInfo.AccountPanSuffix,
-		PanExpiry:               responseStruct.Token.TokenInfo.AccountPanExpiry,
-		BrandAssetID:            responseStruct.Token.ProductConfig.CardBackgroundAssetID,
+		PanUniqueReference:      responseStruct.Token.TokenInfo.PanUniqueReference,
+		PanSuffix:               responseStruct.Token.TokenInfo.PanSuffix,
+		PanExpiry:               responseStruct.Token.TokenInfo.PanExpiry,
+		BrandAssetID:            responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID,
 		ProductCategory:         responseStruct.Token.TokenInfo.ProductCategory,
 		DsrpCapable:             responseStruct.Token.TokenInfo.DsrpCapable,
 		PaymentAccountReference: tokenDetail.PaymentAccountReference,
@@ -570,7 +510,7 @@ func (m MDESapi) GetToken(RequestorID, tokenURef string) (*TokenInfo, error) {
 }
 
 // Transact is the universal API implementation of MDES Transact API call
-func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
+func (m MDESapi) Transact(transactdata TransactData) (*MCCryptogramData, error) {
 
 	req := struct {
 		ResponseHost         string `json:"responseHost"`
@@ -610,7 +550,7 @@ func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
 	log.Printf("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
 	// <<< remove in PROD env
 
-	returnData := CryptogramData{}
+	returnData := MCCryptogramData{}
 
 	if err := json.Unmarshal(decrypted, &returnData); err != nil {
 		return nil, err
@@ -620,25 +560,25 @@ func (m MDESapi) Transact(transactdata TransactData) (*CryptogramData, error) {
 }
 
 // Suspend is the universal API implementation of MDES Suspend API call
-func (m MDESapi) Suspend(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
+func (m MDESapi) Suspend(tokens []string, causedBy, reasonCode string) ([]MCTokenStatus, error) {
 
 	return m.manageTokens(m.urlSuspend, tokens, causedBy, reasonCode)
 }
 
 // Unsuspend is the universal API implementation of MDES Unsuspend API call
-func (m MDESapi) Unsuspend(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
+func (m MDESapi) Unsuspend(tokens []string, causedBy, reasonCode string) ([]MCTokenStatus, error) {
 
 	return m.manageTokens(m.urlUnsuspend, tokens, causedBy, reasonCode)
 }
 
 // Delete is the universal API implementation of MDES Delete API call
-func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
+func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]MCTokenStatus, error) {
 
 	return m.manageTokens(m.urlDelete, tokens, causedBy, reasonCode)
 }
 
 // manageTokens - backend for suspend|unsuspend|delete universal API implementation of MDES Transact API calls
-func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
+func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]MCTokenStatus, error) {
 
 	req := struct {
 		ResponseHost          string   `json:"responseHost"`
@@ -662,9 +602,9 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 	}
 
 	responceData := struct {
-		Tokens []TokenStatus
+		Tokens []MCTokenStatus
 	}{
-		Tokens: []TokenStatus{},
+		Tokens: []MCTokenStatus{},
 	}
 
 	if err := json.Unmarshal(respone, &responceData); err != nil {
@@ -675,7 +615,7 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 }
 
 // GetAsset is the universal API implementation of MDES GetAsset API call
-func (m MDESapi) GetAsset(assetID string) ([]MediaContent, error) {
+func (m MDESapi) GetAsset(assetID string) (MCMediaContents, error) {
 
 	var responce []byte
 
@@ -689,7 +629,7 @@ func (m MDESapi) GetAsset(assetID string) ([]MediaContent, error) {
 		}
 	}
 	responceData := struct {
-		MediaContents []MediaContent
+		MediaContents MCMediaContents
 	}{}
 
 	if err := json.Unmarshal(responce, &responceData); err != nil {
@@ -717,7 +657,7 @@ func (m MDESapi) cacheAssetMedia(assetID string) ([]byte, error) {
 
 // Notify is call-back handler
 func (m MDESapi) Notify(payload []byte) (string, error) {
-
+	// unwrap the received data
 	reqData := struct {
 		ResponseHost     string
 		RequestID        string
@@ -728,13 +668,67 @@ func (m MDESapi) Notify(payload []byte) (string, error) {
 		return "", err
 	}
 
+	// Decrypt data
 	decrypted, err := m.decryptPayload(&reqData.EncryptedPayload)
 	if err != nil {
 		return reqData.RequestID, err
 	}
 
-	// TO DO: handle notification
 	log.Printf("Notify decrypted payload:\n%s\n", decrypted)
 
+	// unwrap decrypted data
+	responceData := MCNotificationTokensData{}
+
+	err = json.Unmarshal(decrypted, &responceData)
+	if err != nil {
+		return reqData.RequestID, err
+	}
+
+	// forward notifications for each token
+	for _, t := range responceData.Tokens {
+		// handle notification forwarding in separate goroutine
+		go m.forwardNotification(t)
+	}
 	return reqData.RequestID, nil
+}
+
+func (m MDESapi) forwardNotification(t MCNotificationTokenData) {
+	// TO DO: make notification record in db: set(notify+t.TokenUniqueReference+timeStamp, json.marshal(t))
+
+	// read token related info from storage
+	s, err := m.db.Get(t.TokenUniqueReference).Result()
+	if err != nil {
+		if err != redis.Nil {
+			log.Printf("ERROR: bd access error: %v", err)
+		} else {
+			log.Printf("Warning: token %s not found", t.TokenUniqueReference)
+		}
+		return
+	}
+
+	// unwrap stored token data
+	storedToken := struct {
+		System      string
+		RequestorID string
+		CBURL       string
+	}{}
+
+	err = json.Unmarshal([]byte(s), &storedToken)
+	if err != nil {
+		log.Printf("ERROR marshaling stored token data error: %v", err)
+		return
+	}
+
+	// TO DO:
+	// format data to send
+	// l: send notification
+	// get responce
+	// if no responce then
+	//   if reties is not exided
+	//      sleep and repeat from l
+	//   else
+	//      log the problem
+	//      return (leaving notification record in db. it will be hanled by scaner)
+	// delete notification record from db: del(notify+t.TokenUniqueReference+timeStamp)
+
 }
