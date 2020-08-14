@@ -15,7 +15,7 @@ func init() {
 	log.SetFlags(log.Lmicroseconds)
 
 	confMDES := MDESconf{
-		Sustem:      "SandBox",
+		System:      "SandBox",
 		EndPont:     "/callback/mdes",
 		SignKey:     "SandBoxKeys/SandBox.p12",
 		EcryptKey:   "SandBoxKeys/164401.crt",

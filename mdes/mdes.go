@@ -22,7 +22,7 @@ import (
 
 // MDESconf configuration for MDES
 type MDESconf struct {
-	Sustem      string
+	System      string
 	EndPont     string
 	SignKey     string
 	EcryptKey   string
@@ -87,7 +87,7 @@ func NewMDESapi(conf *MDESconf) (*MDESapi, error) {
 	}
 
 	MDESenv, MDESsys := "", ""
-	switch conf.Sustem {
+	switch conf.System {
 	case "SandBox":
 		MDESenv = "static/"  // can be "mtf/" or "" for PROD
 		MDESsys = "sandbox." // can be "" for MTF and PROD

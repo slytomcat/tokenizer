@@ -14,7 +14,7 @@ import (
 
 	oauth "github.com/mastercard/oauth1-signer-go"
 	"github.com/mastercard/oauth1-signer-go/utils"
-	"github.com/slytomcat/tokenizer/tools"
+	tools "github.com/slytomcat/tokenizer/tools"
 )
 
 // getRandom returns the specified number of random bytes or error

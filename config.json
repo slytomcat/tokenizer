@@ -1,0 +1,18 @@
+{
+    "API":
+        {
+            "HostPort":"localhost:8080",
+            "Cert":"",
+            "Key":""
+        },
+    "MDES":
+        {
+            "System":"SandBox",
+            "EndPont":"/callback/mdes",
+            "SignKey":"mdes/SandBoxKeys/SandBox.p12",
+            "EcryptKey":"mdes/SandBoxKeys/164401.crt",
+            "EncrypKeyFp":"243e6992ea467f1cbb9973facfcc3bf17b5cd007",
+            "DecryptKey":"mdes/SandBoxKeys/key.p12",
+            "APIKey":"NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000"
+        }
+}

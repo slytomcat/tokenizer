@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/slytomcat/tokenizer/mdes"
+	tools "github.com/slytomcat/tokenizer/tools"
 )
 
 var (
@@ -42,31 +43,26 @@ type Config struct {
 }
 
 func getConfig(path string) *Config {
-	// create config with default values
+	// create empty config
 	configData := Config{
 		API: APIconf{
-			HostPort: "localhost:8080",
+			Cert: "", //"certs/MyCertificate.crt", //"certs/testCertificate.crt"
+			Key:  "", //"certs/MyKey.key", //"certs/testKey.key"
 		},
-		MDES: mdes.MDESconf{
-			Sustem:      "SandBox",
-			EndPont:     "/callback/mdes",
-			SignKey:     "mdes/SandBoxKeys/SandBox.p12",
-			EcryptKey:   "mdes/SandBoxKeys/164401.crt",
-			EncrypKeyFp: "243e6992ea467f1cbb9973facfcc3bf17b5cd007",
-			DecryptKey:  "mdes/SandBoxKeys/key.p12",
-			APIKey:      "NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000",
-		},
+		MDES: mdes.MDESconf{},
 	}
 
-	file, err := mdes.ReadFile(path)
-	if err == nil {
-		err = json.Unmarshal(file, &configData)
-	}
+	err := tools.ReadJSON(path, &configData)
 	if err != nil {
-		log.Printf("config file opening/parsing error: %v", err)
+		log.Printf("WARNING: config file opening/reading/parsing error: %v", err)
 	}
 
-	log.Printf("configuration: %+v", configData)
+	err = json.Unmarshal([]byte(os.Getenv("TOKENIZER_CONF")), &configData)
+	if err != nil {
+		log.Printf("WARNING: config environment variable parsing error: %v", err)
+	}
+
+	log.Printf("INFO: service configuration: %+v", configData)
 
 	return &configData
 }
@@ -99,12 +95,12 @@ func doMain(config *Config) error {
 	// call-back handler
 	http.HandleFunc("/callback/mdes", notifyHandler)
 
-	log.Println("Starting server at :8080")
-
-	// TO DO: make TLS server
-	// TO DO: decide where to store certificates and how to update them (when they are in filesytem then the reboot of service requered)
-	// return http.ListenAndServeTLS(":8080", certFilePath, KeyFilePath, nil)
-	return http.ListenAndServe(":8080", nil)
+	if config.API.Cert != "" && config.API.Key != "" {
+		log.Println("INFO: starting TLS server at", config.API.HostPort)
+		return http.ListenAndServeTLS(config.API.HostPort, config.API.Cert, config.API.Key, nil)
+	}
+	log.Println("INFO: starting server at", config.API.HostPort)
+	return http.ListenAndServe(config.API.HostPort, nil)
 }
 
 // test:
