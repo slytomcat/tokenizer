@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/slytomcat/tokenizer/database"
+	tools "github.com/slytomcat/tokenizer/tools"
 )
 
 var (
@@ -17,6 +19,26 @@ var (
 func init() {
 	log.SetFlags(log.Lmicroseconds)
 
+	configData := struct {
+		DB database.DBConf
+	}{}
+
+	err := tools.ReadJSON("../config.json", &configData)
+	if err != nil {
+		log.Println(err)
+	}
+
+	err = json.Unmarshal([]byte(os.Getenv("TOKENIZER_CONF")), &configData)
+	if err != nil {
+		log.Println(err)
+	}
+
+	// connect to databse
+	db, err := database.Init(&configData.DB)
+	if err != nil {
+		panic(err)
+	}
+
 	confMDES := MDESconf{
 		System:      "SandBox",
 		EndPont:     "/callback/mdes",
@@ -25,17 +47,6 @@ func init() {
 		EncrypKeyFp: "243e6992ea467f1cbb9973facfcc3bf17b5cd007",
 		DecryptKey:  "SandBoxKeys/key.p12",
 		APIKey:      "NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000",
-	}
-
-	DB := database.DBConf{
-		Addrs:    []string{"s-t-c.tk:6379"},
-		Password: "testtesttesttest+CC5l0^B4ffFe7fN0-tlnpTp63wb-GxAZs",
-	}
-
-	// connect to databse
-	db, err := database.Init(&DB)
-	if err != nil {
-		panic(err)
 	}
 
 	if mdesAPI, err = NewMDESapi(&confMDES, db); err != nil {

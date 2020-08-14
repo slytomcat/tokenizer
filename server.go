@@ -83,14 +83,14 @@ func main() {
 func doMain(config *Config) error {
 
 	// connect to databse
-	db, err = database.Init(&config.DB)
+	db, err := database.Init(&config.DB)
 	if err != nil {
 		return err
 	}
 
 	// create MasterCard MDES protocol convertor instance
-	var err error
-	if m, err = mdes.NewMDESapi(&config.MDES, db); err != nil {
+	m, err = mdes.NewMDESapi(&config.MDES, db)
+	if err != nil {
 		return err
 	}
 

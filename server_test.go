@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 		panic(fmt.Errorf("regexp creation error: %w", err))
 	}
 
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 500)
 	// run tests
 	tErr := m.Run()
 
