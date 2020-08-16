@@ -46,7 +46,7 @@ type MDESapi struct {
 	urlSuspend         string
 	urlUnsuspend       string
 	urlDelete          string
-	urlGetAssets       string
+	urlGetAsset        string
 	urlGetToken        string
 	urlSearch          string
 	db                 redis.UniversalClient
@@ -109,7 +109,7 @@ func NewMDESapi(conf *MDESconf, db redis.UniversalClient) (*MDESapi, error) {
 	mAPI.urlSuspend = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/suspend", MDESsys, MDESenv)
 	mAPI.urlUnsuspend = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/unsuspend", MDESsys, MDESenv)
 	mAPI.urlDelete = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/delete", MDESsys, MDESenv)
-	mAPI.urlGetAssets = fmt.Sprintf("https://%sapi.mastercard.com/mdes/assets/%s1/0/asset/", MDESsys, MDESenv)
+	mAPI.urlGetAsset = fmt.Sprintf("https://%sapi.mastercard.com/mdes/assets/%s1/0/asset/", MDESsys, MDESenv)
 	mAPI.urlGetToken = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/getToken", MDESsys, MDESenv)
 	mAPI.urlSearch = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/searchTokens", MDESsys, MDESenv)
 
@@ -317,7 +317,7 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 		return nil, err
 	}
 	// run assets loading to cache in separate goroutine
-	go m.cacheAssetMedia(responseStruct.ProductConfig.CardBackgroundCombinedAssetID)
+	go m.GetAsset(responseStruct.ProductConfig.CardBackgroundCombinedAssetID)
 
 	// TO DO: store token data in separate goroutine
 	// go storeTokenData(System, RequestorID, responseStruct, tokenDetail)
@@ -471,7 +471,7 @@ func (m MDESapi) GetToken(RequestorID, tokenURef string) (*MCTokenInfo, error) {
 	}
 
 	// run background assets loading to cache
-	go m.cacheAssetMedia(responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID)
+	go m.GetAsset(responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID)
 
 	decrypted, err := m.decryptPayload(&responseStruct.TokenDetail)
 	if err != nil {
@@ -623,10 +623,18 @@ func (m MDESapi) GetAsset(assetID string) (MCMediaContents, error) {
 		log.Printf("media for assedID: %s receved from cache", assetID)
 		responce = []byte(data)
 	} else {
-		responce, err = m.cacheAssetMedia(assetID)
+		responce, err := m.request("GET", m.urlGetAsset+assetID, nil)
 		if err != nil {
 			return nil, err
 		}
+		go func() {
+			_, err := m.db.Set(assetID, string(responce), time.Duration(time.Hour*8760)).Result() //1  year expiration
+			if err != nil {
+				log.Printf("media storage error: %v", err)
+			} else {
+				log.Printf("media for assetID: %s stored to cache", assetID)
+			}
+		}()
 	}
 	responceData := struct {
 		MediaContents MCMediaContents
@@ -637,22 +645,6 @@ func (m MDESapi) GetAsset(assetID string) (MCMediaContents, error) {
 	}
 
 	return responceData.MediaContents, nil
-}
-
-func (m MDESapi) cacheAssetMedia(assetID string) ([]byte, error) {
-	if assetID == "" {
-		log.Println("no assetID to get")
-		return nil, errors.New("no assetID to get")
-	}
-	responce, err := m.request("GET", m.urlGetAssets+assetID, nil)
-	if err != nil {
-		return nil, err
-	}
-	go func() {
-		m.db.Set(assetID, string(responce), time.Duration(time.Hour*8760)) //1  year expiration
-		log.Printf("media for assetID: %s stored to cache", assetID)
-	}()
-	return responce, nil
 }
 
 // Notify is call-back handler
@@ -694,6 +686,7 @@ func (m MDESapi) Notify(payload []byte) (string, error) {
 
 func (m MDESapi) forwardNotification(t MCNotificationTokenData) {
 	// TO DO: make notification record in db: set(notify+t.TokenUniqueReference+timeStamp, json.marshal(t))
+	// TO DO: defer delete notification record from db
 
 	// read token related info from storage
 	s, err := m.db.Get(t.TokenUniqueReference).Result()
@@ -729,6 +722,7 @@ func (m MDESapi) forwardNotification(t MCNotificationTokenData) {
 	//   else
 	//      log the problem
 	//      return (leaving notification record in db. it will be hanled by scaner)
-	// delete notification record from db: del(notify+t.TokenUniqueReference+timeStamp)
+	// delete notification record from db
+	// go GetAsset()
 
 }
