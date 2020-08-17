@@ -623,7 +623,7 @@ func (m MDESapi) GetAsset(assetID string) (MCMediaContents, error) {
 		log.Printf("media for assedID: %s receved from cache", assetID)
 		responce = []byte(data)
 	} else {
-		responce, err := m.request("GET", m.urlGetAsset+assetID, nil)
+		responce, err = m.request("GET", m.urlGetAsset+assetID, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -686,7 +686,6 @@ func (m MDESapi) Notify(payload []byte) (string, error) {
 
 func (m MDESapi) forwardNotification(t MCNotificationTokenData) {
 	// TO DO: make notification record in db: set(notify+t.TokenUniqueReference+timeStamp, json.marshal(t))
-	// TO DO: defer delete notification record from db
 
 	// read token related info from storage
 	s, err := m.db.Get(t.TokenUniqueReference).Result()

@@ -46,6 +46,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	log.SetFlags(log.Lmicroseconds)
 	// preporations
 	go func() {
 		err := doMain(getConfig(*configFile))
