@@ -8,6 +8,21 @@ type CardAccountData struct {
 	SecurityCode  string `json:"securityCode"`
 }
 
+// MCError bla-bla
+type MCError struct {
+	ErrorCode        string
+	ErrorDescription string
+	ResponseHost     string
+	ResponseID       string
+	Errors           []struct {
+		Source      string
+		ErrorCode   string
+		Description string
+		ReasonCode  string
+		Recoverable bool
+	}
+}
+
 // MCTokenInfo bla-bla
 type MCTokenInfo struct {
 	TokenUniqueReference    string

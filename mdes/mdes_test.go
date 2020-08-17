@@ -55,6 +55,7 @@ func init() {
 
 	// clear assets cache
 	db.Del("3789637f-32a1-4810-a138-4bf34501c509")
+	db.Del("739d27e5-629d-11e3-949a-0800200c9a66")
 }
 
 func TestPayloadEncryptionAndDecryption(t *testing.T) {
@@ -195,7 +196,11 @@ func TestTokenizeUniversalAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.Printf("Received token data:\n%v", tData)
+	log.Printf("Received token data:\n%+v", tData)
+
+	// wait for asset storage
+	time.Sleep(time.Second)
+	log.Print("waiting for asset storage finished")
 }
 
 func TestSearchUniversalAPI(t *testing.T) {
@@ -211,7 +216,19 @@ func TestSearchUniversalAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.Printf("Received tokens data:\n%v", tData)
+	log.Printf("Received tokens data:\n%+v", tData)
+
+	tData, err = mdesAPI.Search("98765432101", "DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45", "",
+		CardAccountData{})
+
+	// error in sandbox
+	log.Printf("Received expected error:\n%v", err)
+
+	tData, err = mdesAPI.Search("98765432101", "", "FWSPMC000000000159f71f703d2141efaf04dd26803f922b",
+		CardAccountData{})
+
+	// error in sandbox
+	log.Printf("Received expected error:\n%v", err)
 }
 
 func TestGetTokenUniversalAPI(t *testing.T) {

@@ -149,6 +149,19 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 	output := m.ourputRe.ReplaceAll(body, []byte(`"data":"--<--data skiped-->--"`))
 	log.Printf("    >>>>>>>    Response: %s\n%s\n", responce.Status, output)
 
+	if responce.StatusCode != 200 {
+		return nil, fmt.Errorf("responce error: %s", responce.Status)
+	}
+
+	if bytes.Contains(body, []byte("error")) {
+		errData := MCError{}
+		err := json.Unmarshal(body, &errData)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshling error structure error: %v", err)
+		}
+		return nil, fmt.Errorf("responce error: %+v", errData)
+	}
+
 	return body, nil
 }
 
@@ -317,7 +330,7 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 		return nil, err
 	}
 	// run assets loading to cache in separate goroutine
-	go m.GetAsset(responseStruct.ProductConfig.CardBackgroundCombinedAssetID)
+	go m.asyncGetAsset(responseStruct.ProductConfig.CardBackgroundCombinedAssetID)
 
 	// TO DO: store token data in separate goroutine
 	// go storeTokenData(System, RequestorID, responseStruct, tokenDetail)
@@ -344,40 +357,40 @@ func (m MDESapi) Search(RequestorID, tokenURef, panURef string, cardData CardAcc
 	respHost := "assist.ru"
 	payload := []byte{}
 	switch {
-	// case tokenURef != "":
-	// 	type td struct {
-	// 		TokenUniqueReference string `json:"tokenUniqueReference"`
-	// 	}
-	// 	payload, _ = json.Marshal(struct {
-	// 		RequestID          string `json:"requestId"`
-	// 		ResponseHost       string `json:"responseHost"`
-	// 		TokenRequestorID   string `json:"tokenRequestorId"`
-	// 		FundingAccountInfo td     `json:"fundingAccountInfo"`
-	// 	}{
-	// 		RequestID:        reqID,
-	// 		ResponseHost:     respHost,
-	// 		TokenRequestorID: RequestorID,
-	// 		FundingAccountInfo: td{
-	// 			TokenUniqueReference: tokenURef,
-	// 		},
-	// 	})
-	// case panURef != "":
-	// 	type td struct {
-	// 		PanUniqueReference string `json:"panUniqueReference"`
-	// 	}
-	// 	payload, _ = json.Marshal(struct {
-	// 		RequestID          string `json:"requestId"`
-	// 		ResponseHost       string `json:"responseHost"`
-	// 		TokenRequestorID   string `json:"tokenRequestorId"`
-	// 		FundingAccountInfo td     `json:"fundingAccountInfo"`
-	// 	}{
-	// 		RequestID:        reqID,
-	// 		ResponseHost:     respHost,
-	// 		TokenRequestorID: RequestorID,
-	// 		FundingAccountInfo: td{
-	// 			PanUniqueReference: panURef,
-	// 		},
-	// 	})
+	case tokenURef != "":
+		type td struct {
+			TokenUniqueReference string `json:"tokenUniqueReference"`
+		}
+		payload, _ = json.Marshal(struct {
+			RequestID          string `json:"requestId"`
+			ResponseHost       string `json:"responseHost"`
+			TokenRequestorID   string `json:"tokenRequestorId"`
+			FundingAccountInfo td     `json:"fundingAccountInfo"`
+		}{
+			RequestID:        reqID,
+			ResponseHost:     respHost,
+			TokenRequestorID: RequestorID,
+			FundingAccountInfo: td{
+				TokenUniqueReference: tokenURef,
+			},
+		})
+	case panURef != "":
+		type td struct {
+			PanUniqueReference string `json:"panUniqueReference"`
+		}
+		payload, _ = json.Marshal(struct {
+			RequestID          string `json:"requestId"`
+			ResponseHost       string `json:"responseHost"`
+			TokenRequestorID   string `json:"tokenRequestorId"`
+			FundingAccountInfo td     `json:"fundingAccountInfo"`
+		}{
+			RequestID:        reqID,
+			ResponseHost:     respHost,
+			TokenRequestorID: RequestorID,
+			FundingAccountInfo: td{
+				PanUniqueReference: panURef,
+			},
+		})
 	case cardData.AccountNumber != "":
 
 		payloadToEncrypt, _ := json.Marshal(struct {
@@ -471,7 +484,7 @@ func (m MDESapi) GetToken(RequestorID, tokenURef string) (*MCTokenInfo, error) {
 	}
 
 	// run background assets loading to cache
-	go m.GetAsset(responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID)
+	go m.asyncGetAsset(responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID)
 
 	decrypted, err := m.decryptPayload(&responseStruct.TokenDetail)
 	if err != nil {
@@ -617,25 +630,22 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 // GetAsset is the universal API implementation of MDES GetAsset API call
 func (m MDESapi) GetAsset(assetID string) (MCMediaContents, error) {
 
-	var responce []byte
+	responce := []byte{}
 
-	if data, err := m.db.Get(assetID).Result(); err == nil {
-		log.Printf("media for assedID: %s receved from cache", assetID)
-		responce = []byte(data)
-	} else {
+	data, err := m.db.Get(assetID).Result()
+	if err != nil {
 		responce, err = m.request("GET", m.urlGetAsset+assetID, nil)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("getting asset error: %v", err)
 		}
-		go func() {
-			_, err := m.db.Set(assetID, string(responce), time.Duration(time.Hour*8760)).Result() //1  year expiration
-			if err != nil {
-				log.Printf("media storage error: %v", err)
-			} else {
-				log.Printf("media for assetID: %s stored to cache", assetID)
-			}
-		}()
+		// store th the asset to cache in separate goroutine
+		go m.asyncStoreAsset(assetID, responce)
+
+	} else {
+		responce = []byte(data)
+		log.Printf("media for assetID: %s received from cache", assetID)
 	}
+
 	responceData := struct {
 		MediaContents MCMediaContents
 	}{}
@@ -645,6 +655,35 @@ func (m MDESapi) GetAsset(assetID string) (MCMediaContents, error) {
 	}
 
 	return responceData.MediaContents, nil
+}
+
+// asyncGetAsset checks assets existance in cache. If it is not exists then get asset from MDES and store it into cache.
+// It is suitable to be run asynchronously in separate goroutine as it doesn't perform unnecessary data formating.
+func (m MDESapi) asyncGetAsset(assetID string) {
+	n, err := m.db.Exists(assetID).Result()
+	if err != nil {
+		log.Printf("checking assets existance error:%v", err)
+		return
+	}
+	if n == 0 {
+		responce, err := m.request("GET", m.urlGetAsset+assetID, nil)
+		if err != nil {
+			log.Printf("getting asset error: %v", err)
+			return
+		}
+		// since this is already running in a separate goroutine, there is no need to perform asset saving asynchronously
+		m.asyncStoreAsset(assetID, responce)
+	}
+}
+
+// asyncStoreAsset stores asset into cache. It is suitable to be run in separate goroutine.
+func (m MDESapi) asyncStoreAsset(assetID string, data []byte) {
+	_, err := m.db.Set(assetID, string(data), time.Duration(time.Hour*8760)).Result() //1  year expiration
+	if err != nil {
+		log.Printf("media storage error: %v", err)
+	} else {
+		log.Printf("media for assetID: %s stored to cache", assetID)
+	}
 }
 
 // Notify is call-back handler
@@ -722,6 +761,6 @@ func (m MDESapi) forwardNotification(t MCNotificationTokenData) {
 	//      log the problem
 	//      return (leaving notification record in db. it will be hanled by scaner)
 	// delete notification record from db
-	// go GetAsset()
+	// go asyncGetAsset()
 
 }
