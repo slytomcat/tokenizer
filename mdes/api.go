@@ -1,5 +1,20 @@
 package mdes
 
+// MCError error structure
+type MCError struct {
+	ErrorCode        string `json:"errorCode"`
+	ErrorDescription string `json:"errorDescription"`
+	ResponseHost     string `json:"responseHost"`
+	ResponseID       string `json:"responseId"`
+	Errors           []struct {
+		Source      string `json:"source"`
+		ErrorCode   string `json:"errorCode"`
+		Description string `json:"description"`
+		ReasonCode  string `json:"reasonCode"`
+		Recoverable bool   `json:"recoverable"`
+	} `json:"errors"`
+}
+
 // CardAccountData hold the card data
 type CardAccountData struct {
 	AccountNumber string `json:"accountNumber"`
@@ -8,33 +23,18 @@ type CardAccountData struct {
 	SecurityCode  string `json:"securityCode"`
 }
 
-// MCError bla-bla
-type MCError struct {
-	ErrorCode        string
-	ErrorDescription string
-	ResponseHost     string
-	ResponseID       string
-	Errors           []struct {
-		Source      string
-		ErrorCode   string
-		Description string
-		ReasonCode  string
-		Recoverable bool
-	}
-}
-
 // MCTokenInfo bla-bla
 type MCTokenInfo struct {
-	TokenUniqueReference    string
-	TokenPanSuffix          string
-	TokenExpiry             string
-	PanUniqueReference      string
-	PanSuffix               string
-	PanExpiry               string
-	BrandAssetID            string
-	ProductCategory         string
-	DsrpCapable             bool
-	PaymentAccountReference string
+	TokenUniqueReference    string `json:"tokenUniqueReference"`
+	TokenPanSuffix          string `json:"tokenPanSuffix"`
+	TokenExpiry             string `json:"tokenExpiry"`
+	PanUniqueReference      string `json:"panUniqueReference"`
+	PanSuffix               string `json:"panSuffix"`
+	PanExpiry               string `json:"panExpiry"`
+	BrandAssetID            string `json:"brandAssetID"`
+	ProductCategory         string `json:"productCategory"`
+	DsrpCapable             bool   `json:"dsrpCapable"`
+	PaymentAccountReference string `json:"paymentAccountReference"`
 }
 
 // TokenInfo bla bla
@@ -48,7 +48,7 @@ type TokenInfo struct {
 	ProductCategory     string
 }
 
-// MCMediaContent MediaContent bla-bla
+// MCMediaContent bla-bla
 type MCMediaContent struct {
 	Type   string
 	Data   string
@@ -70,25 +70,25 @@ type MCTokenStatus struct {
 
 // MCProductConfig bla-bla
 type MCProductConfig struct {
-	//BrandLogoAssetID              string
-	//IssuerLogoAssetID             string
-	IsCoBranded string
-	CoBrandName string
-	//CoBrandLogoAssetID            string
+	// BrandLogoAssetID              string
+	// IssuerLogoAssetID             string
+	// CoBrandLogoAssetID            string
+	// CardBackgroundAssetID         string
+	// IconAssetID                   string
+	// ForegroundColor               string
 	CardBackgroundCombinedAssetID string
-	//CardBackgroundAssetID         string
-	//IconAssetID                   string
-	//ForegroundColor               string
-	IssuerName                 string
-	ShortDescription           string
-	LongDescription            string
-	CustomerServiceURL         string
-	CustomerServiceEmail       string
-	CustomerServicePhoneNumber string
-	OnlineBankingLoginURL      string
-	TermsAndConditionsURL      string
-	PrivacyPolicyURL           string
-	IssuerProductConfigCode    string
+	IsCoBranded                   string
+	CoBrandName                   string
+	IssuerName                    string
+	ShortDescription              string
+	LongDescription               string
+	CustomerServiceURL            string
+	CustomerServiceEmail          string
+	CustomerServicePhoneNumber    string
+	OnlineBankingLoginURL         string
+	TermsAndConditionsURL         string
+	PrivacyPolicyURL              string
+	IssuerProductConfigCode       string
 }
 
 // MCNotificationTokensData bla-bla
