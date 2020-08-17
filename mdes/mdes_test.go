@@ -238,7 +238,7 @@ func TestGetTokenUniversalAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.Printf("Received token data:\n%v", tData)
+	log.Printf("Received token data:\n%+v", tData)
 }
 
 func TestTransactUniversalAPI(t *testing.T) {
@@ -253,7 +253,7 @@ func TestTransactUniversalAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.Printf("Received cryptogram data:\n%v", cData)
+	log.Printf("Received cryptogram data:\n%+v", cData)
 }
 
 func TestSuspendUniversalAPI(t *testing.T) {
@@ -270,7 +270,7 @@ func TestSuspendUniversalAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.Printf("Received data:\n%v", sStats)
+	log.Printf("Received data:\n%+v", sStats)
 }
 
 func TestUnsuspendUniversalAPI(t *testing.T) {
@@ -287,7 +287,7 @@ func TestUnsuspendUniversalAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.Printf("Received data:\n%v", sStats)
+	log.Printf("Received data:\n%+v", sStats)
 }
 
 func TestDeleteUniversalAPI(t *testing.T) {
@@ -304,7 +304,7 @@ func TestDeleteUniversalAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log.Printf("Received data:\n%v", sStats)
+	log.Printf("Received data:\n%+v", sStats)
 }
 
 func TestGetAssetUniversalAPI(t *testing.T) {

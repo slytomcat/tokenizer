@@ -159,7 +159,7 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("unmarshling error structure error: %v", err)
 		}
-		return nil, fmt.Errorf("responce error: %+v", errData)
+		return nil, fmt.Errorf("responce error received: %+v", errData)
 	}
 
 	return body, nil
