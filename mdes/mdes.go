@@ -715,6 +715,10 @@ func (m MDESapi) Notify(payload []byte) (string, error) {
 		return reqData.RequestID, err
 	}
 
+	if len(responceData.Tokens) == 0 {
+		return reqData.RequestID, errors.New("no data in the list of Tokns")
+	}
+
 	// forward notifications for each token
 	for _, t := range responceData.Tokens {
 		// handle notification forwarding in separate goroutine

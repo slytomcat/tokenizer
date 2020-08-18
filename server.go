@@ -269,14 +269,18 @@ func getAssetsHandler(w http.ResponseWriter, req *http.Request) {
 func notifyHandler(w http.ResponseWriter, req *http.Request) {
 	payload, err := ioutil.ReadAll(req.Body)
 	if err != nil {
+		log.Printf("notification body reading error: %v", err)
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	reqID, err := m.Notify(payload)
 	if err != nil {
+		log.Printf("notification handling error: %v", err)
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	responce, _ := json.Marshal(struct {
@@ -299,8 +303,6 @@ func getTokenHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Printf("body: %s", string(body))
-
 	reqData := struct {
 		RequestorID          string
 		TokenUniqueReference string
@@ -311,8 +313,6 @@ func getTokenHandler(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-
-	log.Printf("TUR: %s, RID: %s", reqData.TokenUniqueReference, reqData.RequestorID)
 
 	responceData, err := m.GetToken(reqData.RequestorID, reqData.TokenUniqueReference)
 	if err != nil {
