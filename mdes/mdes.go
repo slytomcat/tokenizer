@@ -146,14 +146,18 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 		return nil, fmt.Errorf("responce body reading error: %w", err)
 	}
 
+	// fiter output
 	output := m.ourputRe.ReplaceAll(body, []byte(`"data":"--<--data skiped-->--"`))
 	log.Printf("    >>>>>>>    Response: %s\n%s\n", responce.Status, output)
 
+	// check the status code
 	if responce.StatusCode != 200 {
 		return nil, fmt.Errorf("responce error: %s", responce.Status)
 	}
 
-	if bytes.Contains(body, []byte("error")) {
+	// check body for error
+	if bytes.Contains(body, []byte("errorCode")) {
+		// get error details
 		errData := MCError{}
 		err := json.Unmarshal(body, &errData)
 		if err != nil {

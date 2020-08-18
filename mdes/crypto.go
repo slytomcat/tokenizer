@@ -28,9 +28,9 @@ func getRandom(nBytes int) ([]byte, error) {
 
 // unpaddingPKCS7 removes padding
 func unpaddingPKCS7(text []byte) []byte {
-	lentgth := len(text)
-	padding := int(text[lentgth-1])
-	return text[:lentgth-padding]
+	length := len(text)
+	padding := int(text[length-1])
+	return text[:length-padding]
 }
 
 // paddingPKCS7 makes padding

@@ -17,13 +17,13 @@ type DBConnect struct {
 
 // Init creates DB connection
 func Init(conf *DBConf) (redis.UniversalClient, error) {
-
+	// TO DO: add more options for prod configuration
 	db := redis.NewUniversalClient(&redis.UniversalOptions{
 		Addrs:    conf.Addrs,
 		Password: conf.Password,
 	})
 
-	// try to ping data base
+	// try to ping database
 	if _, err := db.Ping().Result(); err != nil {
 		return nil, err
 	}

@@ -7,13 +7,13 @@
         },
     "DB":
         {
-            "Addrs": [ "<host:port of Redis server>" ],
+            "Addrs": [ "<host:port of Redis servers>" ],
             "Password": "<long password for Redis connection>"
         },
     "MDES":
         {
             "System":"<one of: SandBox|MTF|PROD>",
-            "EndPont":"<Endpoint cofigured for nitifications receivig from MDES site>",
+            "EndPont":"<Endpoint cofigured for receivig notifications from MDES site>",
             "SignKey":"<path to signing key p12 safe>",
             "EcryptKey":"<path to certificate with key for encryption >",
             "EncrypKeyFp":"<Fingerpring of encryption key>",
