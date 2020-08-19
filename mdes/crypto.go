@@ -26,11 +26,21 @@ func getRandom(nBytes int) ([]byte, error) {
 	return buf, nil
 }
 
-// unpaddingPKCS7 removes padding
-func unpaddingPKCS7(text []byte) []byte {
+// unpaddingPKCS7 checks and removes padding
+func unpaddingPKCS7(text []byte) ([]byte, error) {
 	length := len(text)
 	padding := int(text[length-1])
-	return text[:length-padding]
+	// try to perform check in more-less the same time for errors in different positions to avoid time based atacks
+	var err error
+	for _, b := range text[length-padding:] {
+		if int(b) != padding {
+			err = errors.New("wrong padding")
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return text[:length-padding], nil
 }
 
 // paddingPKCS7 makes padding
@@ -40,8 +50,8 @@ func paddingPKCS7(text []byte, blockSize int) []byte {
 	return append(text, padtext...)
 }
 
-// decryptAESCBC decypts ciphertext via AES-CBC
-func decryptAESCBC(key, iv, ciphertext []byte) ([]byte, error) {
+// decryptAESCBC decypts cipherText via AES-CBC
+func decryptAESCBC(key, iv, cipherText []byte) ([]byte, error) {
 	// make new AES cipher
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -51,14 +61,14 @@ func decryptAESCBC(key, iv, ciphertext []byte) ([]byte, error) {
 	mode := cipher.NewCBCDecrypter(block, iv)
 
 	// decryp data
-	opentext := make([]byte, len(ciphertext))
-	mode.CryptBlocks(opentext, ciphertext)
+	plainText := make([]byte, len(cipherText))
+	mode.CryptBlocks(plainText, cipherText)
 
-	return unpaddingPKCS7(opentext), nil
+	return unpaddingPKCS7(plainText)
 }
 
-// encryptAESCBC encrypts opentext via AES-CBC
-func encryptAESCBC(key, opentext []byte) ([]byte, []byte, error) {
+// encryptAESCBC encrypts plainText via AES-CBC
+func encryptAESCBC(key, plainText []byte) ([]byte, []byte, error) {
 	// make new AES chiper
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -73,16 +83,16 @@ func encryptAESCBC(key, opentext []byte) ([]byte, []byte, error) {
 	}
 
 	// add padding
-	opentext = paddingPKCS7(opentext, blockSize)
+	plainText = paddingPKCS7(plainText, blockSize)
 
 	// make CBC mode encryptor
 	mode := cipher.NewCBCEncrypter(block, iv)
 
 	// encrypt the payload
-	ciphertext := make([]byte, len(opentext))
-	mode.CryptBlocks(ciphertext, opentext)
+	cipherText := make([]byte, len(plainText))
+	mode.CryptBlocks(cipherText, plainText)
 
-	return iv, ciphertext, nil
+	return iv, cipherText, nil
 }
 
 func (m MDESapi) signer() *oauth.Signer {
