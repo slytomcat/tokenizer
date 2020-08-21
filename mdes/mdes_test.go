@@ -45,8 +45,16 @@ func init() {
 		SignKey:     "SandBoxKeys/SandBox.p12",
 		EcryptKey:   "SandBoxKeys/164401.crt",
 		EncrypKeyFp: "243e6992ea467f1cbb9973facfcc3bf17b5cd007",
-		DecryptKey:  "SandBoxKeys/key.p12",
-		APIKey:      "NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000",
+		// DecryptKeys:  []struct{
+		// 	Key string
+		// 	Fingerprint string
+		// 	}{
+		// 		[{"Key":"SandBoxKeys/key.p12", "Fingerprint":"982175aa53858f44de919c70b20e011681b9db0deec4f4c117da8ece86a4684e"},]},
+		APIKey: "NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000",
+	}
+	confMDES.DecryptKeys = []keywfp{
+		keywfp{Key: "SandBoxKeys/key.p12", Fingerprint: "982175aa53858f44de919c70b20e011681b9db0deec4f4c117da8ece86a4684e"},
+		keywfp{Key: "SandBoxKeys/key.p12", Fingerprint: "243e6992ea467f1cbb9973facfcc3bf17b5cd007"}, // for testing encryption a decryption
 	}
 
 	if mdesAPI, err = NewMDESapi(&confMDES, db); err != nil {
@@ -54,8 +62,8 @@ func init() {
 	}
 
 	// clear assets cache
-	db.Del("3789637f-32a1-4810-a138-4bf34501c509")
-	db.Del("739d27e5-629d-11e3-949a-0800200c9a66")
+	db.Del(prefix+"3789637f-32a1-4810-a138-4bf34501c509")
+	db.Del(prefix+"739d27e5-629d-11e3-949a-0800200c9a66")
 }
 
 func TestPayloadEncryptionAndDecryption(t *testing.T) {
@@ -73,7 +81,7 @@ func TestPayloadEncryptionAndDecryption(t *testing.T) {
 	// temporary switch the encryptKey
 	saveKey := mdesAPI.storedEncryptKey
 
-	mdesAPI.storedEncryptKey = &mdesAPI.storedDecryptKey.PublicKey
+	mdesAPI.storedEncryptKey = &mdesAPI.storedDecryptKeys["982175aa53858f44de919c70b20e011681b9db0deec4f4c117da8ece86a4684e"].PublicKey
 
 	encrypted, err := mdesAPI.encryptPayload(payload)
 	if err != nil {

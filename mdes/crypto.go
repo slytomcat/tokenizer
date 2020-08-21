@@ -105,10 +105,11 @@ func (m MDESapi) decrypKey(keyFP string) *rsa.PrivateKey {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 	// TO DO: select key by fingerprint (there must be 1+ keys for decryption)
-	// if m.storedEncryptKeyFP != keyFP {
-	// 	panic("no key for fingerprint:" + keyFP)
-	// }
-	return m.storedDecryptKey
+	decryptKey, ok := m.storedDecryptKeys[keyFP]
+	if !ok {
+		panic("no key for fingerprint:" + keyFP)
+	}
+	return decryptKey
 }
 
 func (m MDESapi) encryptKey() (*rsa.PublicKey, string) {
@@ -130,9 +131,13 @@ func (m *MDESapi) initKeys(conf *MDESconf) error {
 
 	// TO DO get password from secure storage
 	// TO DO get and store multiple keys/fingerprints in map[fingerprint]key
-	m.storedDecryptKey, err = utils.LoadSigningKey(conf.DecryptKey, "keystorepassword")
-	if err != nil {
-		return err
+	m.storedDecryptKeys = make(map[string]*rsa.PrivateKey)
+	for _, keyData := range conf.DecryptKeys {
+		decryptKey, err := utils.LoadSigningKey(keyData.Key, "keystorepassword")
+		if err != nil {
+			return err
+		}
+		m.storedDecryptKeys[keyData.Fingerprint] = decryptKey
 	}
 
 	// load encryption public key

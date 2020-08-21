@@ -16,8 +16,8 @@
             "EndPont":"<Endpoint cofigured for receivig notifications from MDES site>",
             "SignKey":"<path to signing key p12 safe>",
             "EcryptKey":"<path to certificate with key for encryption >",
-            "EncrypKeyFp":"<Fingerpring of encryption key>",
-            "DecryptKey":"<path to decryption key p12 safe>",
+            "EncrypKeyFp":"<Fingerprint of encryption key>",
+            "DecryptKeys": [{"Key": "<path to decryption key>", "Fingerprint":"<decryption key fingerprint>"}],
             "APIKey":"<consumer key from MC developer portal project>"
         }
 }

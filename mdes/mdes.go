@@ -27,6 +27,11 @@ const (
 	prefix = "MC-" // prefix for keys in storage
 )
 
+type keywfp struct {
+	Key         string
+	Fingerprint string
+}
+
 // MDESconf configuration for MDES
 type MDESconf struct {
 	System      string
@@ -34,16 +39,16 @@ type MDESconf struct {
 	SignKey     string
 	EcryptKey   string
 	EncrypKeyFp string
-	DecryptKey  string
-	//DecryptKeys struct{Fingerprint string, key string} - to support multiple keys
-	APIKey string
+	//DecryptKey  string
+	DecryptKeys []keywfp // to support multiple keys
+	APIKey      string
 }
 
 // MDESapi TokenizerAPI implementation for MasterCard MDES Digital enabled API
 type MDESapi struct {
-	oAuthSigner      *oauth.Signer
-	storedDecryptKey *rsa.PrivateKey
-	// storedDecryptKeys map[string]*rsa.PublicKey - to support multiple keys
+	oAuthSigner *oauth.Signer
+	//storedDecryptKey *rsa.PrivateKey
+	storedDecryptKeys  map[string]*rsa.PrivateKey //- to support multiple keys
 	storedEncryptKey   *rsa.PublicKey
 	storedEncryptKeyFP string
 	mutex              *sync.RWMutex  // RWmutex requered for KeyExchangeManager
