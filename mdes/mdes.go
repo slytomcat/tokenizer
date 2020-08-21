@@ -23,6 +23,10 @@ import (
 	"github.com/slytomcat/tokenizer/database"
 )
 
+const (
+	prefix = "MC-" // prefix for keys in storage
+)
+
 // MDESconf configuration for MDES
 type MDESconf struct {
 	System      string
@@ -362,11 +366,11 @@ func (m MDESapi) asyncStoreTokenData(outSystem, requestorID, tokenUniqueReferenc
 		RequestorID: requestorID,
 	})
 
-	err := m.db.Set(tokenUniqueReference, data, 0).Err()
+	err := m.db.Set(prefix+tokenUniqueReference, data, 0).Err()
 	if err != nil {
 		log.Printf("ERROR: token info storing error: %v", err)
 	} else {
-		log.Printf("INFO: info for token %s stored: %s", tokenUniqueReference, data)
+		log.Printf("INFO: stored info for token %s: %s", prefix+tokenUniqueReference, data)
 	}
 }
 
@@ -653,7 +657,7 @@ func (m MDESapi) GetAsset(assetID string) (MCMediaContents, error) {
 
 	responce := []byte{}
 
-	data, err := m.db.Get(assetID).Result()
+	data, err := m.db.Get(prefix + assetID).Result()
 	if err != nil {
 		responce, err = m.request("GET", m.urlGetAsset+assetID, nil)
 		if err != nil {
@@ -682,7 +686,7 @@ func (m MDESapi) GetAsset(assetID string) (MCMediaContents, error) {
 // It is suitable to be run asynchronously in separate goroutine as it doesn't perform unnecessary data formating that GetAsset do.
 func (m MDESapi) asyncGetAsset(assetID string) {
 	if assetID != "" {
-		n, err := m.db.Exists(assetID).Result()
+		n, err := m.db.Exists(prefix + assetID).Result()
 		if err != nil {
 			log.Printf("checking assets existance error:%v", err)
 			return
@@ -701,7 +705,7 @@ func (m MDESapi) asyncGetAsset(assetID string) {
 
 // asyncStoreAsset stores asset into cache. It is suitable to be run in separate goroutine.
 func (m MDESapi) asyncStoreAsset(assetID string, data []byte) {
-	_, err := m.db.Set(assetID, string(data), time.Duration(time.Hour*8760)).Result() //1  year expiration
+	err := m.db.Set(prefix+assetID, string(data), time.Duration(time.Hour*8760)).Err() //1  year expiration ?
 	if err != nil {
 		log.Printf("media storage error: %v", err)
 	} else {
@@ -760,7 +764,7 @@ func (m MDESapi) asyncForwardNotification(t MCNotificationTokenData) {
 	// TO DO: make notification record in db: set(notify+t.TokenUniqueReference+timeStamp, json.marshal(t))
 
 	// read token related info from storage
-	s, err := m.db.Get(t.TokenUniqueReference).Result()
+	s, err := m.db.Get(prefix + t.TokenUniqueReference).Result()
 	if err != nil {
 		if err != redis.Nil {
 			log.Printf("ERROR: bd access error: %v", err)
@@ -785,7 +789,7 @@ func (m MDESapi) asyncForwardNotification(t MCNotificationTokenData) {
 	// l: send notification
 	// get responce
 	// if no responce then
-	//   if reties is not exided
+	//   if the number of sending attempts is not exceeded
 	//      sleep and repeat from l
 	//   else
 	//      log the problem
