@@ -128,6 +128,7 @@ func tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	reqData := struct {
+		OutSystem   string
 		RequestorID string
 		CardData    mdes.CardAccountData
 		Source      string
@@ -140,7 +141,7 @@ func tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	tokenData, err := m.Tokenize(reqData.RequestorID, reqData.CardData, reqData.Source)
+	tokenData, err := m.Tokenize(reqData.OutSystem, reqData.RequestorID, reqData.CardData, reqData.Source)
 	if err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusInternalServerError)

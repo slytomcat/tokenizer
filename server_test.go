@@ -99,11 +99,13 @@ func requst(url string, payload []byte) ([]byte, error) {
 
 func TestTokenize(t *testing.T) {
 	_, err := requst("http://localhost:8080/api/v1/tokenize",
-		[]byte(`{"requestorid":"123454","carddata":{"accountNumber":"5123456789012345","expiryMonth":"09","expiryYear":"21","securityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}`),
+		[]byte(`{"outsystem":"A5","requestorid":"123454","carddata":{"accountNumber":"5123456789012345","expiryMonth":"09","expiryYear":"21","securityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
+	time.Sleep(time.Second * 2)
+	log.Println("Waiting for storage of assests finished")
 }
 
 func TestTransact(t *testing.T) {
@@ -156,6 +158,9 @@ func TestNotify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// wait for cache updates
+	time.Sleep(time.Second)
+	log.Println("Done waiting async storage")
 }
 
 func TestSearch(t *testing.T) {

@@ -182,6 +182,7 @@ func TestTransactRequestDecryption(t *testing.T) {
 
 func TestTokenizeUniversalAPI(t *testing.T) {
 	tData, err := mdesAPI.Tokenize(
+		"A5",     // outSytem
 		"123456", // requestorID
 		CardAccountData{
 			AccountNumber: "5123456789012345",
@@ -199,8 +200,8 @@ func TestTokenizeUniversalAPI(t *testing.T) {
 	log.Printf("Received token data:\n%+v", tData)
 
 	// wait for asset storage
-	time.Sleep(time.Second)
-	log.Print("waiting for asset storage finished")
+	time.Sleep(time.Second * 2)
+	log.Print("waiting for assets storage finished")
 }
 
 func TestSearchUniversalAPI(t *testing.T) {
@@ -341,4 +342,8 @@ func TestNotifyMDES(t *testing.T) {
 	if reqID == "" {
 		t.Fatal(`reqID == ""`)
 	}
+	// wait for cache updates
+	time.Sleep(time.Second)
+	log.Println("Done")
+
 }

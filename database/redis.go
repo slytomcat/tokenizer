@@ -15,6 +15,12 @@ type DBConnect struct {
 	redis.UniversalClient
 }
 
+// TokenData is a token data that stored for notification support
+type TokenData struct {
+	OutSystem       string
+	RequestorID     string
+}
+
 // Init creates DB connection
 func Init(conf *DBConf) (redis.UniversalClient, error) {
 	// TO DO: add more options for prod configuration

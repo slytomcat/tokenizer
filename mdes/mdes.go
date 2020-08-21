@@ -20,6 +20,7 @@ import (
 
 	"github.com/go-redis/redis/v7"
 	oauth "github.com/mastercard/oauth1-signer-go"
+	"github.com/slytomcat/tokenizer/database"
 )
 
 // MDESconf configuration for MDES
@@ -245,7 +246,7 @@ func (m MDESapi) decryptPayload(ePayload *encryptedPayload) ([]byte, error) {
 }
 
 // Tokenize is the universal API implementation of MDES Tokenize API call
-func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source string) (*MCTokenInfo, error) {
+func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountData, source string) (*MCTokenInfo, error) {
 
 	payloadToEncrypt, _ := json.Marshal(struct {
 		CardAccountData CardAccountData `json:"cardAccountData"`
@@ -274,7 +275,7 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 		RequestID:        "12344321", // TO DO: make uniq ID here
 		TaskID:           "12344321", // TO DO: make uniq ID here
 		TokenType:        "CLOUD",    //constant
-		TokenRequestorID: RequestorID,
+		TokenRequestorID: requestorID,
 		FundingAccountInfo: struct {
 			EncryptedPayload encryptedPayload `json:"encryptedPayload"`
 		}{
@@ -336,8 +337,8 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 	// run assets loading to cache in separate goroutine
 	go m.asyncGetAsset(responseStruct.ProductConfig.CardBackgroundCombinedAssetID)
 
-	// TO DO: store token data in separate goroutine
-	// go storeTokenData(System, RequestorID, responseStruct, tokenDetail)
+	// store token data in separate goroutine
+	go m.asyncStoreTokenData(outSystem, requestorID, responseStruct.TokenUniqueReference, responseStruct.Status, responseStruct.StatusTimestamp)
 
 	return &MCTokenInfo{
 		TokenUniqueReference:    responseStruct.TokenUniqueReference,
@@ -351,6 +352,22 @@ func (m MDESapi) Tokenize(RequestorID string, cardData CardAccountData, source s
 		DsrpCapable:             responseStruct.TokenInfo.DsrpCapable,
 		PaymentAccountReference: tokenDetail.PaymentAccountReference,
 	}, nil
+}
+
+// storeTokenData strores token data in to cache.
+// It should be run in separate goroutine
+func (m MDESapi) asyncStoreTokenData(outSystem, requestorID, tokenUniqueReference, status, statusTimestamp string) {
+	data, _ := json.Marshal(database.TokenData{
+		OutSystem:   outSystem,
+		RequestorID: requestorID,
+	})
+
+	err := m.db.Set(tokenUniqueReference, data, 0).Err()
+	if err != nil {
+		log.Printf("ERROR: token info storing error: %v", err)
+	} else {
+		log.Printf("INFO: info for token %s stored: %s", tokenUniqueReference, data)
+	}
 }
 
 // Search is the universal API implementation of MDES SearchToken API call
@@ -662,21 +679,23 @@ func (m MDESapi) GetAsset(assetID string) (MCMediaContents, error) {
 }
 
 // asyncGetAsset checks assets existance in cache. If it is not exists then get asset from MDES and store it into cache.
-// It is suitable to be run asynchronously in separate goroutine as it doesn't perform unnecessary data formating.
+// It is suitable to be run asynchronously in separate goroutine as it doesn't perform unnecessary data formating that GetAsset do.
 func (m MDESapi) asyncGetAsset(assetID string) {
-	n, err := m.db.Exists(assetID).Result()
-	if err != nil {
-		log.Printf("checking assets existance error:%v", err)
-		return
-	}
-	if n == 0 {
-		responce, err := m.request("GET", m.urlGetAsset+assetID, nil)
+	if assetID != "" {
+		n, err := m.db.Exists(assetID).Result()
 		if err != nil {
-			log.Printf("getting asset error: %v", err)
+			log.Printf("checking assets existance error:%v", err)
 			return
 		}
-		// since this is already running in a separate goroutine, there is no need to perform asset saving asynchronously
-		m.asyncStoreAsset(assetID, responce)
+		if n == 0 {
+			responce, err := m.request("GET", m.urlGetAsset+assetID, nil)
+			if err != nil {
+				log.Printf("getting asset error: %v", err)
+				return
+			}
+			// since this is already running in a separate goroutine, there is no need to perform asset saving asynchronously
+			m.asyncStoreAsset(assetID, responce)
+		}
 	}
 }
 
@@ -711,6 +730,12 @@ func (m MDESapi) Notify(payload []byte) (string, error) {
 
 	log.Printf("Notify decrypted payload:\n%s\n", decrypted)
 
+	// ! ! ! TESTING TRICK (REMOVE IT BY MOVING TO MTF):
+	// Falsificate decrypted data with the response from the Search Token request
+	decrypted = []byte(`{"tokens":[{"tokenUniqueReference":"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","status":"ACTIVE","statusTimestamp":"2017-09-05T00:00:00.000Z"},{"tokenUniqueReference":"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","status":"ACTIVE","statusTimestamp":"2017-09-06T00:00:00.000Z"},{"tokenUniqueReference":"DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532","status":"SUSPENDED","suspendedBy":["TOKEN_REQUESTOR"],"statusTimestamp":"2017-09-07T00:00:00.000Z"}]}`)
+	log.Printf("Falsificated payload:\n%s\n", decrypted)
+	// REMOVE IT BY MOVING TO MTF|PROD ! ! !
+
 	// unwrap decrypted data
 	responceData := MCNotificationTokensData{}
 
@@ -726,12 +751,12 @@ func (m MDESapi) Notify(payload []byte) (string, error) {
 	// forward notifications for each token
 	for _, t := range responceData.Tokens {
 		// handle notification forwarding in separate goroutine
-		go m.forwardNotification(t)
+		go m.asyncForwardNotification(t)
 	}
 	return reqData.RequestID, nil
 }
 
-func (m MDESapi) forwardNotification(t MCNotificationTokenData) {
+func (m MDESapi) asyncForwardNotification(t MCNotificationTokenData) {
 	// TO DO: make notification record in db: set(notify+t.TokenUniqueReference+timeStamp, json.marshal(t))
 
 	// read token related info from storage
@@ -740,23 +765,20 @@ func (m MDESapi) forwardNotification(t MCNotificationTokenData) {
 		if err != redis.Nil {
 			log.Printf("ERROR: bd access error: %v", err)
 		} else {
-			log.Printf("Warning: token %s not found", t.TokenUniqueReference)
+			log.Printf("n: token %s not found in DB", t.TokenUniqueReference)
 		}
 		return
 	}
 
 	// unwrap stored token data
-	storedToken := struct {
-		System      string
-		RequestorID string
-		CBURL       string
-	}{}
-
-	err = json.Unmarshal([]byte(s), &storedToken)
+	storedTokenData := database.TokenData{}
+	err = json.Unmarshal([]byte(s), &storedTokenData)
 	if err != nil {
 		log.Printf("ERROR marshaling stored token data error: %v", err)
 		return
 	}
+
+	log.Printf("Notification for out system/requestorId: %s/%s\nNotification data: %+v", storedTokenData.OutSystem, storedTokenData.RequestorID, t)
 
 	// TO DO:
 	// format data to send
