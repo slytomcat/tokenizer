@@ -35,13 +35,15 @@ type MDESconf struct {
 	EcryptKey   string
 	EncrypKeyFp string
 	DecryptKey  string
-	APIKey      string
+	//DecryptKeys struct{Fingerprint string, key string} - to support multiple keys
+	APIKey string
 }
 
 // MDESapi TokenizerAPI implementation for MasterCard MDES Digital enabled API
 type MDESapi struct {
-	oAuthSigner        *oauth.Signer
-	storedDecryptKey   *rsa.PrivateKey
+	oAuthSigner      *oauth.Signer
+	storedDecryptKey *rsa.PrivateKey
+	// storedDecryptKeys map[string]*rsa.PublicKey - to support multiple keys
 	storedEncryptKey   *rsa.PublicKey
 	storedEncryptKeyFP string
 	mutex              *sync.RWMutex  // RWmutex requered for KeyExchangeManager
@@ -234,9 +236,8 @@ func (m MDESapi) decryptPayload(ePayload *encryptedPayload) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("unknown hash algorithm: %s", ePayload.OaepHashingAlgorithm)
 	}
-	// TO DO: select privite key by ePayload.PublicKeyFingerprint
 	// decrypt encryptedKey
-	sessionKey, err := rsa.DecryptOAEP(hash, rand.Reader, m.decrypKey(), encryptedKey, nil)
+	sessionKey, err := rsa.DecryptOAEP(hash, rand.Reader, m.decrypKey(ePayload.PublicKeyFingerprint), encryptedKey, nil)
 	if err != nil {
 		return nil, fmt.Errorf("encrypted key decryption error: %w", err)
 	}
@@ -457,9 +458,7 @@ func (m MDESapi) Search(RequestorID, tokenURef, panURef string, cardData CardAcc
 
 	responseData := struct {
 		Tokens []MCTokenStatus
-	}{
-		Tokens: []MCTokenStatus{},
-	}
+	}{}
 
 	if err := json.Unmarshal(response, &responseData); err != nil {
 		return nil, err
@@ -626,7 +625,7 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 		ReasonCode            string   `json:"reasonCode"`
 	}{
 		ResponseHost:          "assist.ru",
-		RequestID:             "2093809230",
+		RequestID:             "2093809230", // TO DO: make it unique
 		TokenUniqueReferences: tokens,
 		CausedBy:              causedBy,
 		ReasonCode:            reasonCode,
@@ -754,14 +753,14 @@ func (m MDESapi) Notify(payload []byte) (string, error) {
 
 	// forward notifications for each token
 	for _, t := range responceData.Tokens {
+		// TO DO: make notification record in db: set("notify"+prefix+t.TokenUniqueReference+timeStamp, json.marshal(t))
 		// handle notification forwarding in separate goroutine
-		go m.asyncForwardNotification(t)
+		go m.asyncForwardNotification(t) // + "notify"+prefix+t.TokenUniqueReference+timeStamp to handle the notification record
 	}
 	return reqData.RequestID, nil
 }
 
 func (m MDESapi) asyncForwardNotification(t MCNotificationTokenData) {
-	// TO DO: make notification record in db: set(notify+t.TokenUniqueReference+timeStamp, json.marshal(t))
 
 	// read token related info from storage
 	s, err := m.db.Get(prefix + t.TokenUniqueReference).Result()
@@ -778,14 +777,18 @@ func (m MDESapi) asyncForwardNotification(t MCNotificationTokenData) {
 	storedTokenData := database.TokenData{}
 	err = json.Unmarshal([]byte(s), &storedTokenData)
 	if err != nil {
-		log.Printf("ERROR marshaling stored token data error: %v", err)
+		log.Printf("ERROR: marshaling stored token data error: %v", err)
 		return
 	}
 
-	log.Printf("Notification for out system/requestorId: %s/%s\nNotification data: %+v", storedTokenData.OutSystem, storedTokenData.RequestorID, t)
+	// update the token asset if it is changed
+	go m.asyncGetAsset(t.ProductConfig.CardBackgroundCombinedAssetID)
+
+	log.Printf("INFO: notification for token/system/requestorId: %s/%s/%s", t.TokenUniqueReference, storedTokenData.OutSystem, storedTokenData.RequestorID)
 
 	// TO DO:
 	// format data to send
+	// update notfication record: set("notify"+prefix+t.TokenUniqueReference+timeStamp, json.marshal(data + recipient), 0)
 	// l: send notification
 	// get responce
 	// if no responce then
@@ -794,7 +797,6 @@ func (m MDESapi) asyncForwardNotification(t MCNotificationTokenData) {
 	//   else
 	//      log the problem
 	//      return (leaving notification record in db. it will be hanled by scaner)
-	// delete notification record from db
-	// go asyncGetAsset()
+	// delete notification record from db^ delete("notify"+prefix+t.TokenUniqueReference+timeStamp)
 
 }
