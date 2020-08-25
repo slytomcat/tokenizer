@@ -104,7 +104,7 @@ func (m MDESapi) signer() *oauth.Signer {
 func (m MDESapi) decrypKey(keyFP string) *rsa.PrivateKey {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-	// TO DO: select key by fingerprint (there must be 1+ keys for decryption)
+	// select key by fingerprint (there must be 1+ keys for decryption)
 	decryptKey, ok := m.storedDecryptKeys[keyFP]
 	if !ok {
 		panic("no key for fingerprint:" + keyFP)
@@ -129,10 +129,10 @@ func (m *MDESapi) initKeys(conf *MDESconf) error {
 
 	m.oAuthSigner = &oauth.Signer{ConsumerKey: conf.APIKey, SigningKey: signingKey}
 
-	// TO DO get password from secure storage
-	// TO DO get and store multiple keys/fingerprints in map[fingerprint]key
-	m.storedDecryptKeys = make(map[string]*rsa.PrivateKey)
+	// get and store multiple keys/fingerprints in map[fingerprint]key
+	m.storedDecryptKeys = map[string]*rsa.PrivateKey{}
 	for _, keyData := range conf.DecryptKeys {
+		// TO DO get password from secure storage
 		decryptKey, err := utils.LoadSigningKey(keyData.Key, "keystorepassword")
 		if err != nil {
 			return err

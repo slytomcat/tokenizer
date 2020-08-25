@@ -262,8 +262,8 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 		CardAccountData CardAccountData `json:"cardAccountData"`
 		Source          string          `json:"source"`
 	}{
-		cardData,
-		source,
+		CardAccountData: cardData,
+		Source:          source,
 	})
 
 	encrPayload, err := m.encryptPayload(payloadToEncrypt)
@@ -554,7 +554,7 @@ func (m MDESapi) GetToken(RequestorID, tokenURef string) (*MCTokenInfo, error) {
 // Transact is the universal API implementation of MDES Transact API call
 func (m MDESapi) Transact(transactdata TransactData) (*MCCryptogramData, error) {
 
-	req := struct {
+	payload, _ := json.Marshal(struct {
 		ResponseHost         string `json:"responseHost"`
 		RequestID            string `json:"requestId"`
 		TokenUniqueReference string `json:"tokenUniqueReference"`
@@ -564,9 +564,7 @@ func (m MDESapi) Transact(transactdata TransactData) (*MCCryptogramData, error) 
 		RequestID:            "2093809230",
 		TokenUniqueReference: transactdata.TokenUniqueReference,
 		CryptogramType:       transactdata.CryptogramType,
-	}
-
-	payload, _ := json.Marshal(req)
+	})
 
 	respone, err := m.request("POST", m.urlTransact, payload)
 	if err != nil {
@@ -622,7 +620,7 @@ func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]MCToken
 // manageTokens - backend for suspend|unsuspend|delete universal API implementation of MDES Transact API calls
 func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]MCTokenStatus, error) {
 
-	req := struct {
+	payload, _ := json.Marshal(struct {
 		ResponseHost          string   `json:"responseHost"`
 		RequestID             string   `json:"requestId"`
 		TokenUniqueReferences []string `json:"tokenUniqueReferences"`
@@ -634,9 +632,7 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 		TokenUniqueReferences: tokens,
 		CausedBy:              causedBy,
 		ReasonCode:            reasonCode,
-	}
-
-	payload, _ := json.Marshal(req)
+	})
 
 	respone, err := m.request("POST", url, payload)
 	if err != nil {
@@ -645,9 +641,7 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 
 	responceData := struct {
 		Tokens []MCTokenStatus
-	}{
-		Tokens: []MCTokenStatus{},
-	}
+	}{}
 
 	if err := json.Unmarshal(respone, &responceData); err != nil {
 		return nil, err
