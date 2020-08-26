@@ -10,6 +10,13 @@
             "Addrs": [ "<host:port of Redis servers>" ],
             "Password": "<long password for Redis connection>"
         },
+    "Cache":
+        {
+            "Bucket":     "<s3 bucket>",
+            "AccesKeyID": "<AWS Access Key ID>",
+            "SecretKey":  "<AWS Secret Key>",
+            "Region":     "<Region >"
+        },
     "MDES":
         {
             "System":"<one of: SandBox|MTF|PROD>",

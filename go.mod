@@ -3,6 +3,7 @@ module github.com/slytomcat/tokenizer
 go 1.14
 
 require (
+	github.com/aws/aws-sdk-go v1.34.10
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-redis/redis/v7 v7.4.0
 	github.com/mastercard/oauth1-signer-go v1.1.0

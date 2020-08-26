@@ -19,9 +19,7 @@ var (
 func init() {
 	log.SetFlags(log.Lmicroseconds)
 
-	configData := struct {
-		DB database.DBConf
-	}{}
+	configData := struct{ DB database.DBConf }{}
 
 	err := tools.ReadJSON("../config.json", &configData)
 	if err != nil {
@@ -45,12 +43,7 @@ func init() {
 		SignKey:     "SandBoxKeys/SandBox.p12",
 		EcryptKey:   "SandBoxKeys/164401.crt",
 		EncrypKeyFp: "243e6992ea467f1cbb9973facfcc3bf17b5cd007",
-		// DecryptKeys:  []struct{
-		// 	Key string
-		// 	Fingerprint string
-		// 	}{
-		// 		[{"Key":"SandBoxKeys/key.p12", "Fingerprint":"982175aa53858f44de919c70b20e011681b9db0deec4f4c117da8ece86a4684e"},]},
-		APIKey: "NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000",
+		APIKey:      "NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000",
 	}
 	confMDES.DecryptKeys = []keywfp{
 		keywfp{Key: "SandBoxKeys/key.p12", Fingerprint: "982175aa53858f44de919c70b20e011681b9db0deec4f4c117da8ece86a4684e"},
@@ -62,8 +55,8 @@ func init() {
 	}
 
 	// clear assets cache
-	db.Del(prefix+"3789637f-32a1-4810-a138-4bf34501c509")
-	db.Del(prefix+"739d27e5-629d-11e3-949a-0800200c9a66")
+	db.Del(prefix + "3789637f-32a1-4810-a138-4bf34501c509")
+	db.Del(prefix + "739d27e5-629d-11e3-949a-0800200c9a66")
 }
 
 func TestPayloadEncryptionAndDecryption(t *testing.T) {

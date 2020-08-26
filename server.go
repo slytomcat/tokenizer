@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/slytomcat/tokenizer/cache"
+
 	"github.com/go-redis/redis/v7"
 	database "github.com/slytomcat/tokenizer/database"
 	"github.com/slytomcat/tokenizer/mdes"
@@ -41,9 +43,10 @@ type APIconf struct {
 
 // Config is the service configuration values set
 type Config struct {
-	API  APIconf
-	DB   database.DBConf
-	MDES mdes.MDESconf
+	API   APIconf
+	DB    database.DBConf
+	Cache cache.Config
+	MDES  mdes.MDESconf
 	//VISA - section for future VISA configuration values
 }
 
