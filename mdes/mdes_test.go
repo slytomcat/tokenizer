@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slytomcat/tokenizer/cache"
 	"github.com/slytomcat/tokenizer/database"
 	tools "github.com/slytomcat/tokenizer/tools"
 )
@@ -19,7 +20,11 @@ var (
 func init() {
 	log.SetFlags(log.Lmicroseconds)
 
-	configData := struct{ DB database.DBConf }{}
+	configData := struct {
+		DB    database.DBConf
+		Cache cache.Config
+		MDES  MDESconf
+	}{}
 
 	err := tools.ReadJSON("../config.json", &configData)
 	if err != nil {
@@ -37,20 +42,14 @@ func init() {
 		panic(err)
 	}
 
-	confMDES := MDESconf{
-		System:      "SandBox",
-		EndPont:     "/callback/mdes",
-		SignKey:     "SandBoxKeys/SandBox.p12",
-		EcryptKey:   "SandBoxKeys/164401.crt",
-		EncrypKeyFp: "243e6992ea467f1cbb9973facfcc3bf17b5cd007",
-		APIKey:      "NDRX0cBtHeuPezZCwZM2v9XlMHsVGlW_kyoTW_Hqde2c1d5c!44fcf467a7bf492fb4142bd75ad423030000000000000000",
-	}
-	confMDES.DecryptKeys = []keywfp{
+	configData.MDES.EcryptKey = "SandBoxKeys/164401.crt"
+	configData.MDES.SignKey = "SandBoxKeys/SandBox.p12"
+	configData.MDES.DecryptKeys = []keywfp{
 		keywfp{Key: "SandBoxKeys/key.p12", Fingerprint: "982175aa53858f44de919c70b20e011681b9db0deec4f4c117da8ece86a4684e"},
 		keywfp{Key: "SandBoxKeys/key.p12", Fingerprint: "243e6992ea467f1cbb9973facfcc3bf17b5cd007"}, // for testing encryption a decryption
 	}
 
-	if mdesAPI, err = NewMDESapi(&confMDES, db); err != nil {
+	if mdesAPI, err = NewMDESapi(&configData.MDES, db, cache.NewCache(&configData.Cache)); err != nil {
 		panic(err)
 	}
 
@@ -312,25 +311,20 @@ func TestDeleteUniversalAPI(t *testing.T) {
 func TestGetAssetUniversalAPI(t *testing.T) {
 	log.Println("___________First request ________________")
 
-	assets, err := mdesAPI.GetAsset("3789637f-32a1-4810-a138-4bf34501c509")
+	url, err := mdesAPI.GetAsset("3789637f-32a1-4810-a138-4bf34501c509")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// too long output
-	//log.Printf("Received data:\n%v", assets)
-	log.Printf("Media data received. Payload items: %d", len(assets))
+	log.Printf("URL received:   %s", url)
 	//
 	time.Sleep(time.Second) // wait for first request to cache data
 	// repeat request to chek the cache
 	log.Println("___________Second request ________________")
-	assets, err = mdesAPI.GetAsset("3789637f-32a1-4810-a138-4bf34501c509")
+	url, err = mdesAPI.GetAsset("3789637f-32a1-4810-a138-4bf34501c509")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// too long output
-	//log.Printf("Received data:\n%v", assets)
-	log.Printf("Media data received. Payload items: %d", len(assets))
-
+	log.Printf("URL from cache: %s", url)
 }
 
 func TestNotifyMDES(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -15,8 +16,11 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/slytomcat/tokenizer/cache"
 
 	"github.com/go-redis/redis/v7"
 	oauth "github.com/mastercard/oauth1-signer-go"
@@ -62,6 +66,7 @@ type MDESapi struct {
 	urlGetToken        string
 	urlSearch          string
 	db                 redis.UniversalClient
+	cache              *cache.Cache
 }
 
 // encryptedPayload structure of encrypted payload of MDES API
@@ -74,7 +79,7 @@ type encryptedPayload struct {
 }
 
 // NewMDESapi creates new MDESapi implementation
-func NewMDESapi(conf *MDESconf, db redis.UniversalClient) (*MDESapi, error) {
+func NewMDESapi(conf *MDESconf, db redis.UniversalClient, ch *cache.Cache) (*MDESapi, error) {
 	// TO DO: run KeyExchangeManager goroutine ho handle key renewal process
 	// c := make(chan os.Signal, 1)
 	// signal.Notify(c, syscall.SIGUSR1)
@@ -91,6 +96,7 @@ func NewMDESapi(conf *MDESconf, db redis.UniversalClient) (*MDESapi, error) {
 	mAPI := &MDESapi{
 		mutex: &sync.RWMutex{}, // RWmutex requered for KeyExchangeManager
 		db:    db,
+		cache: ch,
 	}
 
 	var err error
@@ -345,7 +351,7 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 		return nil, err
 	}
 	// run assets loading to cache in separate goroutine
-	go m.asyncGetAsset(responseStruct.ProductConfig.CardBackgroundCombinedAssetID)
+	go m.GetAsset(responseStruct.ProductConfig.CardBackgroundCombinedAssetID)
 
 	// store token data in separate goroutine
 	go m.asyncStoreTokenData(outSystem, requestorID, responseStruct.TokenUniqueReference, responseStruct.Status, responseStruct.StatusTimestamp)
@@ -513,7 +519,7 @@ func (m MDESapi) GetToken(RequestorID, tokenURef string) (*MCTokenInfo, error) {
 	}
 
 	// run background assets loading to cache
-	go m.asyncGetAsset(responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID)
+	go m.GetAsset(responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID)
 
 	decrypted, err := m.decryptPayload(&responseStruct.TokenDetail)
 	if err != nil {
@@ -651,59 +657,58 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 }
 
 // GetAsset is the universal API implementation of MDES GetAsset API call
-func (m MDESapi) GetAsset(assetID string) (MCMediaContents, error) {
-
-	responce := []byte{}
+func (m MDESapi) GetAsset(assetID string) (string, error) {
 
 	data, err := m.db.Get(prefix + assetID).Result()
-	if err != nil {
-		responce, err = m.request("GET", m.urlGetAsset+assetID, nil)
-		if err != nil {
-			return nil, fmt.Errorf("getting asset error: %v", err)
-		}
-		// store th the asset to cache in separate goroutine
-		go m.asyncStoreAsset(assetID, responce)
-
-	} else {
-		responce = []byte(data)
-		log.Printf("media for assetID: %s received from cache", assetID)
+	if err == nil {
+		log.Printf("INFO: media for assetID: %s received from cache", assetID)
+		return data, nil
 	}
 
+	responce, err := m.request("GET", m.urlGetAsset+assetID, nil)
+	if err != nil {
+		return "", fmt.Errorf("getting asset error: %v", err)
+	}
 	responceData := struct {
 		MediaContents MCMediaContents
 	}{}
 
 	if err := json.Unmarshal(responce, &responceData); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return responceData.MediaContents, nil
-}
-
-// asyncGetAsset checks assets existance in cache. If it is not exists then get asset from MDES and store it into cache.
-// It is suitable to be run asynchronously in separate goroutine as it doesn't perform unnecessary data formating that GetAsset do.
-func (m MDESapi) asyncGetAsset(assetID string) {
-	if assetID != "" {
-		n, err := m.db.Exists(prefix + assetID).Result()
-		if err != nil {
-			log.Printf("checking assets existance error:%v", err)
-			return
-		}
-		if n == 0 {
-			responce, err := m.request("GET", m.urlGetAsset+assetID, nil)
-			if err != nil {
-				log.Printf("getting asset error: %v", err)
-				return
-			}
-			// since this is already running in a separate goroutine, there is no need to perform asset saving asynchronously
-			m.asyncStoreAsset(assetID, responce)
-		}
+	if len(responceData.MediaContents) < 1 {
+		return "", errors.New("no media data received")
 	}
+
+	md := responceData.MediaContents[0]
+
+	tp := strings.Split(md.Type, "/")
+	if len(tp) != 2 {
+		return "", fmt.Errorf("wrong type: %s", md.Type)
+	}
+
+	key := prefix + assetID + "." + tp[1]
+
+	// store th the asset to cache in separate goroutine
+	go m.asyncStoreAsset(assetID, key, &md)
+
+	return m.cache.GetURL(key), nil
 }
 
 // asyncStoreAsset stores asset into cache. It is suitable to be run in separate goroutine.
-func (m MDESapi) asyncStoreAsset(assetID string, data []byte) {
-	err := m.db.Set(prefix+assetID, string(data), time.Duration(time.Hour*8760)).Err() //1  year expiration ?
+func (m MDESapi) asyncStoreAsset(assetID, key string, data *MCMediaContent) {
+	img, err := base64.StdEncoding.DecodeString(data.Data)
+	if err != nil {
+		log.Printf("BASE64 decoding error: %v", err)
+	}
+
+	err = m.cache.Put(key, img)
+	if err != nil {
+		log.Printf("img storage error: %v", err)
+	}
+
+	err = m.db.Set(prefix+assetID, m.cache.GetURL(key), time.Duration(time.Hour*8760)).Err() //1  year expiration ?
 	if err != nil {
 		log.Printf("media storage error: %v", err)
 	} else {
@@ -781,7 +786,7 @@ func (m MDESapi) asyncForwardNotification(t MCNotificationTokenData) {
 	}
 
 	// update the token asset if it is changed
-	go m.asyncGetAsset(t.ProductConfig.CardBackgroundCombinedAssetID)
+	go m.GetAsset(t.ProductConfig.CardBackgroundCombinedAssetID)
 
 	log.Printf("INFO: notification for token/system/requestorId: %s/%s/%s", t.TokenUniqueReference, storedTokenData.OutSystem, storedTokenData.RequestorID)
 

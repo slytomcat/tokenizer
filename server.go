@@ -92,7 +92,7 @@ func doMain(config *Config) error {
 	}
 
 	// create MasterCard MDES protocol convertor instance
-	m, err = mdes.NewMDESapi(&config.MDES, db)
+	m, err = mdes.NewMDESapi(&config.MDES, db, cache.NewCache(&config.Cache))
 	if err != nil {
 		return err
 	}
@@ -263,7 +263,7 @@ func getAssetsHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	resp, _ := json.Marshal(responce)
+	resp, _ := json.Marshal(struct{ URL string }{URL: responce})
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(resp)
 }
