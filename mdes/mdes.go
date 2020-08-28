@@ -39,7 +39,7 @@ type keywfp struct {
 // MDESconf configuration for MDES
 type MDESconf struct {
 	System      string
-	EndPont     string
+	CallBackURI string
 	SignKey     string
 	EcryptKey   string
 	EncrypKeyFp string
@@ -262,7 +262,7 @@ func (m MDESapi) decryptPayload(ePayload *encryptedPayload) ([]byte, error) {
 }
 
 // Tokenize is the universal API implementation of MDES Tokenize API call
-func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountData, source string) (*MCTokenInfo, error) {
+func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountData, source string) (*TokenInfo, error) {
 
 	payloadToEncrypt, _ := json.Marshal(struct {
 		CardAccountData CardAccountData `json:"cardAccountData"`
@@ -350,22 +350,25 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 	if err != nil {
 		return nil, err
 	}
-	// run assets loading to cache in separate goroutine
-	go m.GetAsset(responseStruct.ProductConfig.CardBackgroundCombinedAssetID)
+
+	// get asset URL and update the token asset if it is changed
+	assetURL, err := m.GetAsset(responseStruct.ProductConfig.CardBackgroundCombinedAssetID)
+	if err != nil {
+		log.Printf("ERROR: getting asset error: %v", err)
+	}
 
 	// store token data in separate goroutine
 	go m.asyncStoreTokenData(outSystem, requestorID, responseStruct.TokenUniqueReference, responseStruct.Status, responseStruct.StatusTimestamp)
 
-	return &MCTokenInfo{
+	return &TokenInfo{
 		TokenUniqueReference:    responseStruct.TokenUniqueReference,
 		TokenPanSuffix:          responseStruct.TokenInfo.TokenPanSuffix,
 		TokenExpiry:             responseStruct.TokenInfo.TokenExpiry,
 		PanUniqueReference:      responseStruct.TokenInfo.PanUniqueReference,
-		PanSuffix:               responseStruct.TokenInfo.PanSuffix,
-		PanExpiry:               responseStruct.TokenInfo.PanExpiry,
-		BrandAssetID:            responseStruct.ProductConfig.CardBackgroundCombinedAssetID,
+		PanSuffix:               responseStruct.TokenInfo.AccountPanSuffix,
+		PanExpiry:               responseStruct.TokenInfo.AccountPanExpiry,
+		BrandAssetURL:           assetURL,
 		ProductCategory:         responseStruct.TokenInfo.ProductCategory,
-		DsrpCapable:             responseStruct.TokenInfo.DsrpCapable,
 		PaymentAccountReference: tokenDetail.PaymentAccountReference,
 	}, nil
 }
@@ -479,7 +482,7 @@ func (m MDESapi) Search(RequestorID, tokenURef, panURef string, cardData CardAcc
 }
 
 // GetToken is the universal API implementation of MDES SearchToken API call
-func (m MDESapi) GetToken(RequestorID, tokenURef string) (*MCTokenInfo, error) {
+func (m MDESapi) GetToken(RequestorID, tokenURef string) (*TokenInfo, error) {
 
 	// TO DO: generate random ID
 	reqID := "123456"
@@ -518,8 +521,11 @@ func (m MDESapi) GetToken(RequestorID, tokenURef string) (*MCTokenInfo, error) {
 		return nil, err
 	}
 
-	// run background assets loading to cache
-	go m.GetAsset(responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID)
+	// get asset URL and update the token asset if it is changed
+	assetURL, err := m.GetAsset(responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID)
+	if err != nil {
+		log.Printf("ERROR: getting asset error: %v", err)
+	}
 
 	decrypted, err := m.decryptPayload(&responseStruct.TokenDetail)
 	if err != nil {
@@ -543,16 +549,15 @@ func (m MDESapi) GetToken(RequestorID, tokenURef string) (*MCTokenInfo, error) {
 		return nil, err
 	}
 
-	return &MCTokenInfo{
+	return &TokenInfo{
 		TokenUniqueReference:    responseStruct.Token.TokenUniqueReference,
 		TokenPanSuffix:          responseStruct.Token.TokenInfo.TokenPanSuffix,
 		TokenExpiry:             responseStruct.Token.TokenInfo.TokenExpiry,
 		PanUniqueReference:      responseStruct.Token.TokenInfo.PanUniqueReference,
-		PanSuffix:               responseStruct.Token.TokenInfo.PanSuffix,
-		PanExpiry:               responseStruct.Token.TokenInfo.PanExpiry,
-		BrandAssetID:            responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID,
+		PanSuffix:               responseStruct.Token.TokenInfo.AccountPanSuffix,
+		PanExpiry:               responseStruct.Token.TokenInfo.AccountPanExpiry,
+		BrandAssetURL:           assetURL,
 		ProductCategory:         responseStruct.Token.TokenInfo.ProductCategory,
-		DsrpCapable:             responseStruct.Token.TokenInfo.DsrpCapable,
 		PaymentAccountReference: tokenDetail.PaymentAccountReference,
 	}, nil
 }
@@ -785,10 +790,13 @@ func (m MDESapi) asyncForwardNotification(t MCNotificationTokenData) {
 		return
 	}
 
-	// update the token asset if it is changed
-	go m.GetAsset(t.ProductConfig.CardBackgroundCombinedAssetID)
+	// get asset URL and update the token asset if it is changed
+	assetURL, err := m.GetAsset(t.ProductConfig.CardBackgroundCombinedAssetID)
+	if err != nil {
+		log.Printf("ERROR: getting asset error: %v", err)
+	}
 
-	log.Printf("INFO: notification for token/system/requestorId: %s/%s/%s", t.TokenUniqueReference, storedTokenData.OutSystem, storedTokenData.RequestorID)
+	log.Printf("INFO: notification for token/system/requestorId/assetURL: %s/%s/%s/%s", t.TokenUniqueReference, storedTokenData.OutSystem, storedTokenData.RequestorID, assetURL)
 
 	// TO DO:
 	// format data to send

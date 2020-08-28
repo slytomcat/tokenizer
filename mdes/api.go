@@ -23,29 +23,30 @@ type CardAccountData struct {
 	SecurityCode  string `json:"securityCode"`
 }
 
-// MCTokenInfo bla-bla
+// MCTokenInfo MC API
 type MCTokenInfo struct {
-	TokenUniqueReference    string `json:"tokenUniqueReference"`
-	TokenPanSuffix          string `json:"tokenPanSuffix"`
-	TokenExpiry             string `json:"tokenExpiry"`
-	PanUniqueReference      string `json:"panUniqueReference"`
-	PanSuffix               string `json:"panSuffix"`
-	PanExpiry               string `json:"panExpiry"`
-	BrandAssetID            string `json:"brandAssetID"`
-	ProductCategory         string `json:"productCategory"`
-	DsrpCapable             bool   `json:"dsrpCapable"`
-	PaymentAccountReference string `json:"paymentAccountReference"`
+	TokenUniqueReference string `json:"tokenUniqueReference"`
+	TokenPanSuffix       string `json:"tokenPanSuffix"`
+	TokenExpiry          string `json:"tokenExpiry"`
+	PanUniqueReference   string `json:"panUniqueReference"`
+	AccountPanSuffix     string `json:"accountPanSuffix"`
+	AccountPanExpiry     string `json:"accountPanExpiry"`
+	ProductCategory      string `json:"productCategory"`
+	DsrpCapable          bool   `json:"dsrpCapable"`
+	TokenAssuranceLevel  int    `json:"tokenAssuranceLevel"`
 }
 
-// TokenInfo bla bla
+// TokenInfo universal API
 type TokenInfo struct {
-	TokenPanSuffix      string
-	AccountPanSuffix    string
-	TokenExpiry         string
-	AccountPanExpiry    string
-	DsrpCapable         bool
-	TokenAssuranceLevel int
-	ProductCategory     string
+	TokenUniqueReference    string
+	TokenPanSuffix          string
+	TokenExpiry             string
+	PanUniqueReference      string
+	PanSuffix               string
+	PanExpiry               string
+	BrandAssetURL           string
+	ProductCategory         string
+	PaymentAccountReference string
 }
 
 // MCMediaContent bla-bla

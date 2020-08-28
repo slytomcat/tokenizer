@@ -110,7 +110,7 @@ func doMain(config *Config) error {
 	http.HandleFunc("/api/v1/search", searchHandler)
 
 	// register call-back handler
-	http.HandleFunc(config.MDES.EndPont, notifyHandler)
+	http.HandleFunc(config.MDES.CallBackURI, notifyHandler)
 
 	if config.API.Cert != "" && config.API.Key != "" {
 		log.Println("INFO: starting TLS server at", config.API.HostPort)

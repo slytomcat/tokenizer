@@ -20,7 +20,7 @@
     "MDES":
         {
             "System":"<one of: SandBox|MTF|PROD>",
-            "EndPont":"<Endpoint cofigured for receivig notifications from MDES site>",
+            "CallBackURI":"<Endpoint cofigured for receivig notifications from MDES site>",
             "SignKey":"<path to signing key p12 safe>",
             "EcryptKey":"<path to certificate with key for encryption >",
             "EncrypKeyFp":"<Fingerprint of encryption key>",
