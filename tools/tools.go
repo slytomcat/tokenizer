@@ -1,4 +1,4 @@
-package mdes
+package tools
 
 import (
 	"encoding/json"
@@ -29,6 +29,7 @@ func ReadJSON(path string, i interface{}) error {
 	return nil
 }
 
+// ErrorCollector - errors collector and reporter
 func ErrorCollector(name string) (func(error), func() error) {
 	var errs []error
 	collect := func(err error) {
