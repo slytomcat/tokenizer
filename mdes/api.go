@@ -44,7 +44,7 @@ type TokenInfo struct {
 	PanUniqueReference      string
 	PanSuffix               string
 	PanExpiry               string
-	BrandAssetURL           string
+	BrandAssetID            string
 	ProductCategory         string
 	PaymentAccountReference string
 }

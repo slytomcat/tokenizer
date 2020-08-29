@@ -1,6 +1,7 @@
 package database
 
 import (
+	"time"
 	"github.com/go-redis/redis/v7"
 )
 
@@ -17,8 +18,12 @@ type DBConnect struct {
 
 // TokenData is a token data that stored for notification support
 type TokenData struct {
-	OutSystem       string
-	RequestorID     string
+	OutSystem   string
+	RequestorID string
+	Status string
+	StatusTimestamp time.Time
+	Last4 string
+	AssetURL string
 }
 
 // Init creates DB connection

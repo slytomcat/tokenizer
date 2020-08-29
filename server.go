@@ -1,15 +1,18 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/slytomcat/tokenizer/api"
 	"github.com/slytomcat/tokenizer/cache"
 
 	"github.com/go-redis/redis/v7"
@@ -21,6 +24,7 @@ import (
 var (
 	m  *mdes.MDESapi
 	db redis.UniversalClient
+	c  *cache.Cache
 	// ConfigFile - is the path to the configuration file
 	configFile        = flag.String("config", "./config.json", "`path` to the configuration file")
 	version    string = "unknown version"
@@ -34,16 +38,9 @@ func init() {
 	}
 }
 
-// APIconf configuration for API
-type APIconf struct {
-	HostPort string
-	Cert     string
-	Key      string
-}
-
 // Config is the service configuration values set
 type Config struct {
-	API   APIconf
+	API   api.Config
 	DB    database.DBConf
 	Cache cache.Config
 	MDES  mdes.MDESconf
@@ -51,25 +48,21 @@ type Config struct {
 }
 
 func getConfig(path string) *Config {
-	// create empty config
-	configData := Config{
-		API: APIconf{
-			Cert: "", //"certs/MyCertificate.crt", //"certs/testCertificate.crt"
-			Key:  "", //"certs/MyKey.key", //"certs/testKey.key"
-		},
-		MDES: mdes.MDESconf{},
-	}
 
+	// try to read config file
+	configData := Config{}
 	err := tools.ReadJSON(path, &configData)
 	if err != nil {
 		log.Printf("WARNING: config file opening/reading/parsing error: %v", err)
 	}
 
+	// try to read config from environment
 	err = json.Unmarshal([]byte(os.Getenv("TOKENIZER_CONF")), &configData)
 	if err != nil {
 		log.Printf("WARNING: config environment variable parsing error: %v", err)
 	}
 
+	// REMOVE IT IN PROD
 	log.Printf("INFO: service configuration: %+v", configData)
 
 	return &configData
@@ -84,281 +77,193 @@ func main() {
 }
 
 func doMain(config *Config) error {
-
+	var err error
 	// connect to databse
-	db, err := database.Init(&config.DB)
+	db, err = database.Init(&config.DB)
 	if err != nil {
 		return err
 	}
 
 	// create MasterCard MDES protocol convertor instance
-	m, err = mdes.NewMDESapi(&config.MDES, db, cache.NewCache(&config.Cache))
+	m, err = mdes.NewMDESapi(&config.MDES, mdesNotifyForfard)
 	if err != nil {
 		return err
 	}
 
-	// start service handlers
+	c = cache.NewCache(&config.Cache)
 
-	// register API functions
-	http.HandleFunc("/api/v1/tokenize", tokenizeHandler)
-	http.HandleFunc("/api/v1/transact", transactHandler)
-	http.HandleFunc("/api/v1/suspend", suspendHandler)
-	http.HandleFunc("/api/v1/unsuspend", unsuspendHandler)
-	http.HandleFunc("/api/v1/delete", deleteHandler)
-	http.HandleFunc("/api/v1/getassets", getAssetsHandler)
-	http.HandleFunc("/api/v1/gettoken", getTokenHandler)
-	http.HandleFunc("/api/v1/search", searchHandler)
+	h := api.NewAPI(config.API, handler{})
 
-	// register call-back handler
-	http.HandleFunc(config.MDES.CallBackURI, notifyHandler)
+	// register CTRL-C signal chanel
+	exit := make(chan os.Signal, 1)
+	signal.Notify(exit, os.Interrupt)
 
-	if config.API.Cert != "" && config.API.Key != "" {
-		log.Println("INFO: starting TLS server at", config.API.HostPort)
-		return http.ListenAndServeTLS(config.API.HostPort, config.API.Cert, config.API.Key, nil)
-	}
-	log.Println("INFO: starting server at", config.API.HostPort)
-	return http.ListenAndServe(config.API.HostPort, nil)
+	// wait for CTRL-C
+	<-exit
+
+	// do cleanup
+	m.ShutDown()
+	return h.ShoutDown()
+
 }
 
-// test:
-// curl -v -H "Content-Type: application/json" -d '{"requestorid":"123454","carddata":{"accountNumber":"5123456789012345","expiryMonth":"09","expiryYear":"21","securityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}' http://localhost:8080/api/v1/tokenize
+type handler struct{}
 
-func tokenizeHandler(w http.ResponseWriter, req *http.Request) {
-	body, err := ioutil.ReadAll(req.Body)
+func (h handler) Tokenize(outS, trid, pan, exp, cvc, source string) (string, string, error) {
+
+	// TO DO check the data
+	cardData := mdes.CardAccountData{
+		AccountNumber: pan,
+		ExpiryMonth:   exp[:2],
+		ExpiryYear:    exp[2:],
+		SecurityCode:  cvc,
+	}
+	tokenInfo, err := m.Tokenize(outS, trid, cardData, source)
 	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		return "", "", err
 	}
-	reqData := struct {
-		OutSystem   string
-		RequestorID string
-		CardData    mdes.CardAccountData
-		Source      string
-	}{
-		CardData: mdes.CardAccountData{},
-	}
-	if err = json.Unmarshal(body, &reqData); err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	// store token info for call back handling and start media cache update if requered
+	go h.storeTokenData(outS, trid, tokenInfo.TokenUniqueReference, "INACTIVE", time.Now(), tokenInfo.PanSuffix, tokenInfo.BrandAssetID)
 
-	tokenData, err := m.Tokenize(reqData.OutSystem, reqData.RequestorID, reqData.CardData, reqData.Source)
-	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	resp, _ := json.Marshal(tokenData)
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(resp)
+	return tokenInfo.TokenUniqueReference, "INACTIVE", nil
 }
 
-// test:
-// curl -v -H "Content-Type: application/json" -d '{"tokenUniqueReference":"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","cryptogramType":"UCAF"}' http://localhost:8080/api/v1/transact
+func (h handler) storeTokenData(outSystem, requestorID, tokenUniqueReference, status string, statusTimestamp time.Time, last4, assetID string) {
 
-func transactHandler(w http.ResponseWriter, req *http.Request) {
-	body, err := ioutil.ReadAll(req.Body)
+	// get asset url
+	assetURL, err := h.storeAsset(assetID)
 	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	reqData := mdes.TransactData{}
-	if err = json.Unmarshal(body, &reqData); err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		log.Printf("ERROR: asset storage error: %v", err)
 	}
 
-	ransactData, err := m.Transact(reqData)
-	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	resp, _ := json.Marshal(ransactData)
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(resp)
-}
-
-// test:
-// curl -v -H "Content-Type: application/json" -d '{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}' http://localhost:8080/api/v1/suspend
-
-func suspendHandler(w http.ResponseWriter, req *http.Request) {
-	mangeTokens(m.Suspend, w, req)
-}
-
-// test:
-// curl -v -H "Content-Type: application/json" -d '{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}' http://localhost:8080/api/v1/unsuspend
-
-func unsuspendHandler(w http.ResponseWriter, req *http.Request) {
-	mangeTokens(m.Unsuspend, w, req)
-}
-
-// test:
-// curl -v -H "Content-Type: application/json" -d '{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}' http://localhost:8080/api/v1/delete
-
-func deleteHandler(w http.ResponseWriter, req *http.Request) {
-	mangeTokens(m.Delete, w, req)
-}
-
-// common handler for Suspens|Unsuspend|Delete API calls
-func mangeTokens(action func([]string, string, string) ([]mdes.MCTokenStatus, error), w http.ResponseWriter, req *http.Request) {
-
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	reqData := struct {
-		TokenUniqueReferences []string
-		CausedBy              string
-		ReasonCode            string
-	}{}
-	if err = json.Unmarshal(body, &reqData); err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	responceData, err := action(reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
-	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	resp, _ := json.Marshal(responceData)
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(resp)
-}
-
-// test:
-// curl -v -H "Content-Type: application/json" -d '{"assetid":"3789637f-32a1-4810-a138-4bf34501c509"}' http://localhost:8080/api/v1/getassets
-func getAssetsHandler(w http.ResponseWriter, req *http.Request) {
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	reqData := struct {
-		AssetID string
-	}{}
-	if err = json.Unmarshal(body, &reqData); err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	responce, err := m.GetAsset(reqData.AssetID)
-	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	resp, _ := json.Marshal(struct{ URL string }{URL: responce})
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(resp)
-}
-
-// test:
-// curl -v -H "Content-Type: application/json" -d '{"encryptedPayload":{"publicKeyFingerprint":"982175aa53858f44de919c70b20e011681b9db0deec4f4c117da8ece86a4684e","encryptedKey":"65122ca45c6ceecfce46feec3ca5947f85a1ce96354690880d5c95afb627f0a76401e4c4217f8c783427f02ad1d918afb24c63a437ddb79f36f91ee1c36c199e0822192846c1c74a207e23f3d14ff63b6c12919415568f6edeaa4cbe06dc7850a6439885dd85f1460e8b746bce8a9b1308f69ee4655a3a3a41b7af394bcf1ed837b936dde98a43492c1c5db8442445e165f8c7da18a46fb1a9ea3a8c01b789d5bebbc342cecf54b70353a0f526ef4a218a36a661a425be041ecbd79374929d4e19e44cb84cc51fec2896bdd4d107e26f690ca1ded4eef417e424c316094754dea4520b2576dda13e8cd099369a73a262624652b3a49360c5650b7406f78de27d","oaepHashingAlgorithm":"SHA512","iv":"b1eda75ea7dc84c02ff33639f6a95263","encryptedData":"e2edbaa489b057d9b690eacbb6032fc5172d06bc0392e111cc855e5421cc8bad6f2ab6799a79d7e8c33f642ade2eeec8260278574f8f937869e74da2376956fdf37ddef9f6c4b2d9e6dfbda6040a6d74e6e66ed20afbcbfc382bcce4e04ce8d1569cfbb4748d908ecc247b521de5b60d056a3584586bb44d6d3b37244fbae6303e970a68d766726e49723912e6a43fe44b3bfd77611c178890f63b16f1e8a813185244d9d336c8024638f31d8eb0160be84d8b64be1561d42d366a6330ba3b532065bbaf8445c47055b335362d311420"},"requestID":"5a79a0ac-4b3b-43dc-bafb-ae94a5b3eeec","responseHost":"stl.services.mastercard.com/mdes"}' http://localhost:8080/callback/mdes
-func notifyHandler(w http.ResponseWriter, req *http.Request) {
-	payload, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		log.Printf("notification body reading error: %v", err)
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	reqID, err := m.Notify(payload)
-	if err != nil {
-		log.Printf("notification handling error: %v", err)
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	responce, _ := json.Marshal(struct {
-		ResponseHost string `json:"responseHost"`
-		ResponseID   string `json:"responseId"`
-	}{
-		ResponseHost: "assist.ru",
-		ResponseID:   reqID,
+	data, _ := json.Marshal(database.TokenData{
+		OutSystem:       outSystem,
+		RequestorID:     requestorID,
+		Status:          status,
+		StatusTimestamp: statusTimestamp,
+		AssetURL:        assetURL,
 	})
 
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(responce)
+	err = db.Set("MC-"+tokenUniqueReference, data, 0).Err()
+	if err != nil {
+		log.Printf("ERROR: token info storing error: %v", err)
+	} else {
+		log.Printf("INFO: stored info for token %s: %s", "MC-"+tokenUniqueReference, data)
+	}
 }
 
-func getTokenHandler(w http.ResponseWriter, req *http.Request) {
-	body, err := ioutil.ReadAll(req.Body)
+func (h handler) storeAsset(assetID string) (string, error) {
+
+	// check asset existance in cache
+	url, err := db.Get("MC-" + assetID).Result()
+	if err == nil {
+		log.Printf("INFO: media for assetID: %s exists in cache", assetID)
+		return url, nil
+	}
+
+	// get asset data
+	mediaData, err := m.GetAsset(assetID)
 	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		log.Printf("ERROR: getting asset error: %v", err)
 	}
 
-	reqData := struct {
-		RequestorID          string
-		TokenUniqueReference string
-	}{}
-
-	if err = json.Unmarshal(body, &reqData); err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	// get type
+	tp := strings.Split(mediaData.Type, "/")
+	if len(tp) != 2 {
+		return "", fmt.Errorf("wrong type: %s", mediaData.Type)
 	}
 
-	responceData, err := m.GetToken(reqData.RequestorID, reqData.TokenUniqueReference)
+	assetID = "MC-" + assetID
+	key := assetID + "." + tp[1]
+
+	url = c.GetURL(key)
+
+	err = db.Set(assetID, url, time.Duration(time.Hour*8760)).Err() //1  year expiration ?
 	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return "", err
 	}
 
-	resp, _ := json.Marshal(responceData)
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(resp)
+	img, err := base64.StdEncoding.DecodeString(mediaData.Data)
+	if err != nil {
+		log.Printf("ERROR: BASE64 decoding error: %v", err)
+	}
 
+	err = c.Put(key, img)
+	if err != nil {
+		return "", err
+	}
+
+	return url, nil
 }
 
-func searchHandler(w http.ResponseWriter, req *http.Request) {
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	reqData := struct {
-		RequestorID           string
-		TokenUniqueReferences string
-		PanUniqueReference    string
-		CardData              mdes.CardAccountData
-	}{}
+func (h handler) Delete(tokens []string, caused, reason string) ([]api.TokenStatus, error) {
 
-	if err = json.Unmarshal(body, &reqData); err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	responceData, err := m.Search(reqData.RequestorID, reqData.TokenUniqueReferences, reqData.PanUniqueReference, reqData.CardData)
+	tokenStatuses, err := m.Delete(tokens, caused, reason)
 	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return nil, err
+	}
+	ts := []api.TokenStatus{}
+	for _, t := range tokenStatuses {
+		ts = append(ts, api.TokenStatus{
+			TokenUniqueReference: t.TokenUniqueReference,
+			Status:               t.Status,
+			StatusTimestamp:      t.StatusTimestamp,
+			SuspendedBy:          t.SuspendedBy,
+		})
+	}
+	return ts, nil
+}
+
+func (h handler) Transact(tur string) (string, string, string, error) {
+
+	res, err := m.Transact(tur)
+	if err != nil {
+		return "", "", "", err
+	}
+	// TO DO decide what to do with cryptograms
+	return res.AccountNumber, res.ApplicationExpiryDate, res.Track2Equivalent, nil
+}
+
+func mdesNotifyForfard(t mdes.MCNotificationTokenData) error {
+	// read token related info from storage
+	s, err := db.Get("MC-" + t.TokenUniqueReference).Result()
+	if err != nil {
+		if err != redis.Nil {
+			log.Printf("ERROR: bd access error: %v", err)
+		} else {
+			log.Printf("n: token %s not found in DB", t.TokenUniqueReference)
+		}
+		return err
 	}
 
-	resp, _ := json.Marshal(responceData)
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(resp)
+	// unwrap stored token data
+	storedTokenData := database.TokenData{}
+	err = json.Unmarshal([]byte(s), &storedTokenData)
+	if err != nil {
+		log.Printf("ERROR: marshaling stored token data error: %v", err)
+		return err
+	}
+
+	// get asset URL and update the token asset if it is changed
+	assetURL, err := m.GetAsset(t.ProductConfig.CardBackgroundCombinedAssetID)
+	if err != nil {
+		log.Printf("ERROR: getting asset error: %v", err)
+	}
+
+	log.Printf("INFO: notification for token/system/requestorId/assetURL: %s/%s/%s/%s", t.TokenUniqueReference, storedTokenData.OutSystem, storedTokenData.RequestorID, assetURL)
+
+	// TO DO:
+	// format data to send
+	// update notfication record: set("notify"+prefix+t.TokenUniqueReference+timeStamp, json.marshal(data + recipient), 0)
+	// l: send notification
+	// get responce
+	// if no responce then
+	//   if the number of sending attempts is not exceeded
+	//      sleep and repeat from l
+	//   else
+	//      log the problem
+	//      return (leaving notification record in db. it will be hanled by scaner)
+	// delete notification record from db^ delete("notify"+prefix+t.TokenUniqueReference+timeStamp)
+	return nil
 
 }

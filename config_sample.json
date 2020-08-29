@@ -3,7 +3,7 @@
         {
             "HostPort":"<host:port to start service>",
             "Cert":"<path to TLS certificate, if empty the service starts without TLS>",
-            "Key":"<path to TLS key, if empty the service starts without TLS>"
+            "Key":"<path to TLS key>"
         },
     "DB":
         {
@@ -21,6 +21,9 @@
         {
             "System":"<one of: SandBox|MTF|PROD>",
             "CallBackURI":"<Endpoint cofigured for receivig notifications from MDES site>",
+            "CallBackHostPort":"<host and port to listen for call backs>",
+            "TLSCert":"<TLS certificate for call back listener, if empty the listener starts without TLS>",
+	        "TLSKey":"<TLS key for call back listener>",
             "SignKey":"<path to signing key p12 safe>",
             "EcryptKey":"<path to certificate with key for encryption >",
             "EncrypKeyFp":"<Fingerprint of encryption key>",
