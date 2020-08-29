@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 
 	tools.ReadJSON("../config.json", &configData)
 
-	handler := NewAPI(configData.API, testAPIhandler{})
+	handler := NewAPI(&configData.API, testAPIhandler{})
 
 	time.Sleep(time.Millisecond * 500)
 	// run tests

@@ -62,7 +62,7 @@ func callBack(url string, body []byte) error {
 }
 
 // NewAPI initialize the API and returns the *handler
-func NewAPI(conf Config, handler PGAPI) *Handler {
+func NewAPI(conf *Config, handler PGAPI) *Handler {
 
 	server := http.Server{
 		Addr: conf.HostPort,

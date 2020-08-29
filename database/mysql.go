@@ -9,17 +9,17 @@ import (
 
 // Db database connection
 type Db struct {
-	sql.DB
+	db sql.DB
 }
 
-// Config - database configuration
-type Config struct {
+// ConfigS - database configuration
+type ConfigS struct {
 	DSN          string
 	MaxOpenConns int
 }
 
-// NewDB - makes new database connection
-func NewDB(conf Config) (*Db, error) {
+// NewDBs - makes new database connection
+func NewDBs(conf *ConfigS) (Connector, error) {
 	db, err := sql.Open("mysql", conf.DSN)
 	if err != nil {
 		return nil, err
@@ -37,12 +37,26 @@ func NewDB(conf Config) (*Db, error) {
 	return &Db{}, nil
 }
 
-// Set sets the value for key
-func (d *Db) StoreTokenData(key, value string) error {
+// StoreTokenInfo - stores token info
+func (d *Db) StoreTokenInfo(key string, ti *TokenData) error {
+	// insert|update into TokenInfo where tur=:key
 	return nil
 }
 
-// Get returns the value of key
-func (d *Db) Get(key string) (string, error) {
+// GetTokenInfo returns the token info
+func (d *Db) GetTokenInfo(key string) (*TokenData, error) {
+	// select * from TokenInfo where tur=:key
+	return nil, nil
+}
+
+// StoreAsset - stores asset info
+func (d *Db) StoreAsset(key, url string) error {
+	// insert|update Asset where assetID=:key
+	return nil
+}
+
+// GetAsset returns the token info
+func (d *Db) GetAsset(key string) (string, error) {
+	// select * from Asset where assetID=:key
 	return "", nil
 }

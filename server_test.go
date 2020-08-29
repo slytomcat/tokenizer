@@ -23,23 +23,19 @@ import (
 
 var (
 	outputRe *regexp.Regexp
-	cbURL    string
-	apiURL   string
+	cbURL    string // URL (full) for Call-Back request
+	apiURL   string // URL (partial) for API requests
 )
 
 func TestMain(m *testing.M) {
+
 	log.SetFlags(log.Lmicroseconds)
 	// preporations
 	cnf := getConfig(*configFile)
 	cbURL = "http://" + cnf.MDES.CallBackHostPort + cnf.MDES.CallBackURI
 	apiURL = "http://" + cnf.API.HostPort
 
-	go func() {
-		err := doMain(cnf)
-		if err != nil {
-			panic(err)
-		}
-	}()
+	go main()
 
 	var err error
 
@@ -86,7 +82,7 @@ func request(url string, payload []byte) ([]byte, error) {
 
 func TestTokenizeMC(t *testing.T) {
 	_, err := request(apiURL+"/api/v1/tokenize",
-		[]byte(`{"outsystem":"A5","requestorid":"123454","carddata":{"type":"MC","accountNumber":"5123456789012345","expiry":"2109","securityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}`),
+		[]byte(`{"outsystem":"A5","requestorid":"123454","carddata":{"type":"MC","accountNumber":"5123456789012345","expiry":"0921","securityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}`),
 	)
 	if err != nil {
 		t.Fatal(err)

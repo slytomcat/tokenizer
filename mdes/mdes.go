@@ -1,3 +1,13 @@
+// Package mdes - MDES API adapter
+// It handles the requests singining, data encryption and decryption according to MDES protocol requerements
+// It provides the following methods to interact with MDES API:
+// - Tokenize - card tokenization
+// - Transact - dPand and cryptogram provider for transactions by token
+// - Delete - allows to delete token
+// - GetAsset - provides media assets
+// The adapter also handles the notification call-backs from the MDES side. The http/https call-back listener is configured by the adapter configuration.
+// The busines logic level have to provide the call-back handler function in the adapter creation call.
+// Adapter provides the ShutDown function for gracefull shutdown of the call-back lestener.
 package mdes
 
 import (
@@ -36,9 +46,8 @@ type Config struct {
 	SignKey          string
 	EcryptKey        string
 	EncrypKeyFp      string
-	//DecryptKey  string
-	DecryptKeys []keywfp // to support multiple keys
-	APIKey      string
+	DecryptKeys      []keywfp // to support multiple keys
+	APIKey           string
 }
 
 // MDESapi TokenizerAPI implementation for MasterCard MDES Digital enabled API
@@ -58,7 +67,7 @@ type MDESapi struct {
 	// urlGetToken        string
 	// urlSearch          string
 	cbHandler func(NotificationTokenData) error
-	ShutDown  func() error // gracefull sutdown function
+	ShutDown  func() error // adapter gracefull sutdown function
 }
 
 // encryptedPayload structure of encrypted payload of MDES API
@@ -70,7 +79,7 @@ type encryptedPayload struct {
 	Iv                   string `json:"iv"`                   //
 }
 
-// NewMDESapi creates new MDESapi implementation
+// NewMDESapi creates new MDESapi adapter implementation
 func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData) error) (*MDESapi, error) {
 
 	mAPI := &MDESapi{
@@ -116,7 +125,7 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData) error) (*MDE
 	server := http.Server{
 		Addr: conf.CallBackHostPort,
 		Handler: callBackHandler{
-			cbFunc: mAPI.Notify,
+			cbFunc: mAPI.notify,
 			path:   conf.CallBackURI,
 		},
 	}
@@ -500,7 +509,7 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 	return responceData.Tokens, nil
 }
 
-// GetAsset is the universal API implementation of MDES GetAsset API call
+// GetAsset is the implementation of MDES GetAsset API call
 func (m MDESapi) GetAsset(assetID string) (*MediaContent, error) {
 
 	responce, err := m.request("GET", m.urlGetAsset+assetID, nil)
@@ -522,8 +531,8 @@ func (m MDESapi) GetAsset(assetID string) (*MediaContent, error) {
 	return &responceData.MediaContents[0], nil
 }
 
-// Notify is call-back handler
-func (m MDESapi) Notify(payload []byte) (string, error) {
+// notify is call-back handler
+func (m MDESapi) notify(payload []byte) (string, error) {
 	// unwrap the received data
 	reqData := struct {
 		ResponseHost     string

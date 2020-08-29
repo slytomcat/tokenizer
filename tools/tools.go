@@ -28,3 +28,19 @@ func ReadJSON(path string, i interface{}) error {
 	}
 	return nil
 }
+
+func ErrorCollector(name string) (func(error), func() error) {
+	var errs []error
+	collect := func(err error) {
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	report := func() error {
+		if len(errs) > 0 {
+			return fmt.Errorf(name, errs)
+		}
+		return nil
+	}
+	return collect, report
+}

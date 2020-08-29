@@ -16,7 +16,6 @@ import (
 	"github.com/slytomcat/tokenizer/api"
 	"github.com/slytomcat/tokenizer/cache"
 
-	"github.com/go-redis/redis/v7"
 	database "github.com/slytomcat/tokenizer/database"
 	"github.com/slytomcat/tokenizer/mdes"
 	tools "github.com/slytomcat/tokenizer/tools"
@@ -28,7 +27,7 @@ const (
 
 var (
 	m  *mdes.MDESapi
-	db redis.UniversalClient
+	db *database.DBConnect
 	c  *cache.Cache
 	// ConfigFile - is the path to the configuration file
 	configFile        = flag.String("config", "./config.json", "`path` to the configuration file")
@@ -46,7 +45,7 @@ func init() {
 // Config is the service configuration values set
 type Config struct {
 	API   api.Config
-	DB    database.DBConf
+	DB    database.Config
 	Cache cache.Config
 	MDES  mdes.Config
 	//VISA - section for future VISA configuration values
@@ -74,30 +73,29 @@ func getConfig(path string) *Config {
 }
 
 func main() {
+	var err error
+
 	flag.Parse()
 
-	if err := doMain(getConfig(*configFile)); err != nil {
+	config := getConfig(*configFile)
+
+	// connect to databse
+	db, err = database.NewDB(&config.DB)
+	if err != nil {
 		panic(err)
 	}
-}
 
-func doMain(config *Config) error {
-	var err error
-	// connect to databse
-	db, err = database.Init(&config.DB)
-	if err != nil {
-		return err
-	}
-
-	// create MasterCard MDES protocol convertor instance
+	// create MasterCard MDES protocol adapter instance
 	m, err = mdes.NewMDESapi(&config.MDES, mdesNotifyForfard)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
+	// Initialize cache
 	c = cache.NewCache(&config.Cache)
 
-	h := api.NewAPI(config.API, handler{})
+	// Start API handler
+	h := api.NewAPI(&config.API, handler{})
 
 	// register CTRL-C signal chanel
 	exit := make(chan os.Signal, 1)
@@ -106,34 +104,28 @@ func doMain(config *Config) error {
 	// wait for CTRL-C
 	<-exit
 
-	// do cleanup
-	errs := []error{}
-	collectErrors(&errs, m.ShutDown())
-	collectErrors(&errs, h.ShutDown())
-
-	if len(errs) > 0 {
-		return fmt.Errorf("claerance errors: %v", errs)
-	}
-	return nil
-}
-
-func collectErrors(errs *[]error, err error) {
-	if err != nil {
-		_ = append(*errs, err)
+	// Clearense
+	collect, report := tools.ErrorCollector("clearence error(s): %v")
+	collect(m.ShutDown())
+	collect(h.ShutDown())
+	if err = report(); err != nil {
+		panic(err)
 	}
 }
 
 type handler struct{}
 
 func (h handler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (string, string, error) {
+	if len(exp) != 4 {
+		return "", "", errors.New("wrong length of exp (must be 4)")
+	}
 	switch typ {
 	case "MC":
 
-		// TO DO check the data
 		cardData := mdes.CardAccountData{
 			AccountNumber: pan,
-			ExpiryMonth:   exp[2:],
-			ExpiryYear:    exp[:2],
+			ExpiryMonth:   exp[:2],
+			ExpiryYear:    exp[2:],
 			SecurityCode:  cvc,
 		}
 		tokenInfo, err := m.Tokenize(outS, trid, cardData, source)
@@ -160,7 +152,7 @@ func (h handler) storeTokenData(outSystem, requestorID, typ, tokenUniqueReferenc
 			log.Printf("ERROR: asset storage error: %v", err)
 		}
 
-		data, _ := json.Marshal(database.TokenData{
+		data := database.TokenData{
 			OutSystem:       outSystem,
 			RequestorID:     requestorID,
 			Status:          status,
@@ -169,7 +161,7 @@ func (h handler) storeTokenData(outSystem, requestorID, typ, tokenUniqueReferenc
 			Last4:           last4,
 		})
 
-		err = db.Set(mcPrefix+tokenUniqueReference, data, 0).Err()
+		err = db.StoreTokenInfo(mcPrefix+tokenUniqueReference, data))
 		if err != nil {
 			log.Printf("ERROR: token info storing error: %v", err)
 		} else {
@@ -187,7 +179,7 @@ func (h handler) storeAsset(typ, assetID string) (string, error) {
 	switch typ {
 	case "MC":
 		// check asset existance in cache
-		url, err := db.Get(mcPrefix + assetID).Result()
+		url, err := db.GetAsset(mcPrefix + assetID)
 		if err == nil {
 			log.Printf("INFO: media for assetID: %s exists in cache", assetID)
 			return url, nil
@@ -210,7 +202,7 @@ func (h handler) storeAsset(typ, assetID string) (string, error) {
 
 		url = c.GetURL(key)
 
-		err = db.Set(assetID, url, time.Duration(time.Hour*8760)).Err() //1  year expiration ?
+		err = db.StoreAsset(assetID, url)
 		if err != nil {
 			return "", err
 		}
@@ -275,24 +267,21 @@ func (h handler) Transact(typ, tur string) (string, string, string, error) {
 	}
 }
 
-func mdesNotifyForfard(t mdes.NotificationTokenData) error {
+// MDES call-back notification forward
+func mdesNotifyForfard(t mdes.NotificationTokenData)  {
 	// read token related info from storage
-	s, err := db.Get(mcPrefix + t.TokenUniqueReference).Result()
+	s, err := db.GetAsset(mcPrefix + t.TokenUniqueReference)
 	if err != nil {
-		if err != redis.Nil {
-			log.Printf("ERROR: bd access error: %v", err)
-		} else {
-			log.Printf("n: token %s not found in DB", t.TokenUniqueReference)
-		}
-		return err
+		log.Printf("ERROR: getting token info from db error: %v" err)
+		return
 	}
 
 	// unwrap stored token data
 	storedTokenData := database.TokenData{}
 	err = json.Unmarshal([]byte(s), &storedTokenData)
 	if err != nil {
-		log.Printf("ERROR: marshaling stored token data error: %v", err)
-		return err
+		log.Printf("ERROR: unmarshaling stored token data error: %v", err)
+		return 
 	}
 
 	// get asset URL and update the token asset if it is changed
@@ -304,7 +293,9 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) error {
 	log.Printf("INFO: notification for token/system/requestorId/assetURL: %s/%s/%s/%s", t.TokenUniqueReference, storedTokenData.OutSystem, storedTokenData.RequestorID, assetURL)
 
 	// TO DO:
-	// format data to send
+	// Get oUtSystem call-back URL from DB 
+	// Put formated notification into SQS
+	// forgot the rest:
 	// update notfication record: set("notify"+prefix+t.TokenUniqueReference+timeStamp, json.marshal(data + recipient), 0)
 	// l: send notification
 	// get responce
@@ -313,7 +304,7 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) error {
 	//      sleep and repeat from l
 	//   else
 	//      log the problem
-	//      return (leaving notification record in db. it will be hanled by scaner)
+	//      return (leaving notification record in database it will be hanled by scaner)
 	// delete notification record from db^ delete("notify"+prefix+t.TokenUniqueReference+timeStamp)
 	return nil
 
