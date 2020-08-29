@@ -26,16 +26,16 @@ type TokenStatus struct {
 
 // PGAPI - payment gate API intreface
 type PGAPI interface {
-	Tokenize(string, string, string, string, string, string) (string, string, error)
-	Delete([]string, string, string) ([]TokenStatus, error)
-	Transact(string) (string, string, string, error)
+	Tokenize(string, string, string, string, string, string, string) (string, string, error)
+	Delete(string, []string, string, string) ([]TokenStatus, error)
+	Transact(string, string) (string, string, string, error)
 }
 
 // Handler - API handler
 type Handler struct {
-	handler   PGAPI
-	ShoutDown func() error
-	CallBack  func(string, []byte) error
+	apiHandler PGAPI
+	ShutDown   func() error
+	CallBack   func(string, []byte) error
 }
 
 func (h Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
@@ -69,9 +69,9 @@ func NewAPI(conf Config, handler PGAPI) *Handler {
 	}
 
 	hendl := Handler{
-		handler:   handler,
-		ShoutDown: func() error { return server.Shutdown(context.Background()) },
-		CallBack:  callBack,
+		apiHandler: handler,
+		ShutDown:   func() error { return server.Shutdown(context.Background()) },
+		CallBack:   callBack,
 	}
 
 	server.Handler = hendl
@@ -95,7 +95,7 @@ func NewAPI(conf Config, handler PGAPI) *Handler {
 }
 
 // test:
-// curl -v -H "Content-Type: application/json" -d '{"requestorid":"123454","carddata":{"accountNumber":"5123456789012345","expiryMonth":"09","expiryYear":"21","securityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}' http://localhost:8080/api/v1/tokenize
+// curl -v -H "Content-Type: application/json" -d '{"requestorid":"123454","carddata":{"type":"MC","accountNumber":"5123456789012345","expiryMonth":"09","expiryYear":"21","securityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}' http://localhost:8080/api/v1/tokenize
 
 func (h Handler) tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
@@ -108,6 +108,7 @@ func (h Handler) tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 		OutSystem   string
 		RequestorID string
 		CardData    struct {
+			Type          string
 			AccountNumber string
 			Expiry        string
 			SecurityCode  string
@@ -120,7 +121,14 @@ func (h Handler) tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	token, status, err := h.handler.Tokenize(reqData.OutSystem, reqData.RequestorID, reqData.CardData.AccountNumber, reqData.CardData.Expiry, reqData.CardData.SecurityCode, reqData.Source)
+	token, status, err := h.apiHandler.Tokenize(
+		reqData.OutSystem,
+		reqData.RequestorID,
+		reqData.CardData.Type,
+		reqData.CardData.AccountNumber,
+		reqData.CardData.Expiry,
+		reqData.CardData.SecurityCode,
+		reqData.Source)
 	if err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusInternalServerError)
@@ -149,7 +157,8 @@ func (h Handler) transactHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	reqData := struct {
-		TokenUniqueReferences string
+		Type                 string
+		TokenUniqueReference string
 	}{}
 	if err = json.Unmarshal(body, &reqData); err != nil {
 		// TO DO: provide more error details
@@ -157,7 +166,7 @@ func (h Handler) transactHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	dpan, exp, crypto, err := h.handler.Transact(reqData.TokenUniqueReferences)
+	dpan, exp, crypto, err := h.apiHandler.Transact(reqData.Type, reqData.TokenUniqueReference)
 	if err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusInternalServerError)
@@ -187,6 +196,7 @@ func (h Handler) deleteHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	reqData := struct {
+		Type                  string
 		TokenUniqueReferences []string
 		CausedBy              string
 		ReasonCode            string
@@ -197,7 +207,7 @@ func (h Handler) deleteHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	statuses, err := h.handler.Delete(reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
+	statuses, err := h.apiHandler.Delete(reqData.Type, reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
 	if err != nil {
 		// TO DO: provide more error details
 		w.WriteHeader(http.StatusInternalServerError)

@@ -29,16 +29,16 @@ import (
 
 type testAPIhandler struct{}
 
-func (testAPIhandler) Tokenize(outS, trid, pan, exp, cvc, source string) (string, string, error) {
-	log.Printf("Tokenize: outsys: %s, TRID: %s, PAN: %s , Exp: %s, CVC: %s, source: %s", outS, trid, pan, exp, cvc, source)
+func (testAPIhandler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (string, string, error) {
+	log.Printf("Tokenize: outsys: %s, TRID: %s, TYP: %s, PAN: %s , Exp: %s, CVC: %s, source: %s", outS, trid, typ, pan, exp, cvc, source)
 	return "TUR", "Status", nil
 }
-func (testAPIhandler) Delete(tokens []string, caused, reason string) ([]TokenStatus, error) {
-	log.Printf("Delete tokens: %v, reason: %s, causedby: %s ", tokens, reason, caused)
+func (testAPIhandler) Delete(typ string, tokens []string, caused, reason string) ([]TokenStatus, error) {
+	log.Printf("Delete tokens: %v, type: %s reason: %s, causedby: %s ", tokens, typ, reason, caused)
 	return []TokenStatus{TokenStatus{"TUR", "STSTUS", "TIMESTAMP", []string{"SuspendedBy"}}}, nil
 }
-func (testAPIhandler) Transact(tur string) (string, string, string, error) {
-	log.Printf("Transact: TUR: %s", tur)
+func (testAPIhandler) Transact(typ, tur string) (string, string, string, error) {
+	log.Printf("Transact: typ: %s, TUR: %s", typ, tur)
 	return "dpan", "exp", "crypto", nil
 }
 
@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 	tErr := m.Run()
 
 	// Clearance
-	err := handler.ShoutDown()
+	err := handler.ShutDown()
 	if err != nil {
 		panic(err)
 	}

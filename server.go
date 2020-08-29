@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -19,6 +20,10 @@ import (
 	database "github.com/slytomcat/tokenizer/database"
 	"github.com/slytomcat/tokenizer/mdes"
 	tools "github.com/slytomcat/tokenizer/tools"
+)
+
+const (
+	mcPrefix = "MC-"
 )
 
 var (
@@ -43,7 +48,7 @@ type Config struct {
 	API   api.Config
 	DB    database.DBConf
 	Cache cache.Config
-	MDES  mdes.MDESconf
+	MDES  mdes.Config
 	//VISA - section for future VISA configuration values
 }
 
@@ -102,131 +107,177 @@ func doMain(config *Config) error {
 	<-exit
 
 	// do cleanup
-	m.ShutDown()
-	return h.ShoutDown()
+	errs := []error{}
+	collectErrors(&errs, m.ShutDown())
+	collectErrors(&errs, h.ShutDown())
 
+	if len(errs) > 0 {
+		return fmt.Errorf("claerance errors: %v", errs)
+	}
+	return nil
+}
+
+func collectErrors(errs *[]error, err error) {
+	if err != nil {
+		_ = append(*errs, err)
+	}
 }
 
 type handler struct{}
 
-func (h handler) Tokenize(outS, trid, pan, exp, cvc, source string) (string, string, error) {
+func (h handler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (string, string, error) {
+	switch typ {
+	case "MC":
 
-	// TO DO check the data
-	cardData := mdes.CardAccountData{
-		AccountNumber: pan,
-		ExpiryMonth:   exp[:2],
-		ExpiryYear:    exp[2:],
-		SecurityCode:  cvc,
-	}
-	tokenInfo, err := m.Tokenize(outS, trid, cardData, source)
-	if err != nil {
-		return "", "", err
-	}
-	// store token info for call back handling and start media cache update if requered
-	go h.storeTokenData(outS, trid, tokenInfo.TokenUniqueReference, "INACTIVE", time.Now(), tokenInfo.PanSuffix, tokenInfo.BrandAssetID)
+		// TO DO check the data
+		cardData := mdes.CardAccountData{
+			AccountNumber: pan,
+			ExpiryMonth:   exp[2:],
+			ExpiryYear:    exp[:2],
+			SecurityCode:  cvc,
+		}
+		tokenInfo, err := m.Tokenize(outS, trid, cardData, source)
+		if err != nil {
+			return "", "", err
+		}
+		// store token info for call back handling and start media cache update if requered
+		go h.storeTokenData(outS, trid, typ, tokenInfo.TokenUniqueReference, "INACTIVE", time.Now(), tokenInfo.AccountPanSuffix, tokenInfo.BrandAssetID)
 
-	return tokenInfo.TokenUniqueReference, "INACTIVE", nil
-}
-
-func (h handler) storeTokenData(outSystem, requestorID, tokenUniqueReference, status string, statusTimestamp time.Time, last4, assetID string) {
-
-	// get asset url
-	assetURL, err := h.storeAsset(assetID)
-	if err != nil {
-		log.Printf("ERROR: asset storage error: %v", err)
-	}
-
-	data, _ := json.Marshal(database.TokenData{
-		OutSystem:       outSystem,
-		RequestorID:     requestorID,
-		Status:          status,
-		StatusTimestamp: statusTimestamp,
-		AssetURL:        assetURL,
-	})
-
-	err = db.Set("MC-"+tokenUniqueReference, data, 0).Err()
-	if err != nil {
-		log.Printf("ERROR: token info storing error: %v", err)
-	} else {
-		log.Printf("INFO: stored info for token %s: %s", "MC-"+tokenUniqueReference, data)
+		return tokenInfo.TokenUniqueReference, "INACTIVE", nil
+	case "VISA":
+		return "", "", errors.New("unsupported yet card type")
+	default:
+		return "", "", errors.New("unsupported card type")
 	}
 }
 
-func (h handler) storeAsset(assetID string) (string, error) {
+func (h handler) storeTokenData(outSystem, requestorID, typ, tokenUniqueReference, status string, statusTimestamp time.Time, last4, assetID string) {
+	switch typ {
+	case "MC":
+		// get asset url
+		assetURL, err := h.storeAsset(typ, assetID)
+		if err != nil {
+			log.Printf("ERROR: asset storage error: %v", err)
+		}
 
-	// check asset existance in cache
-	url, err := db.Get("MC-" + assetID).Result()
-	if err == nil {
-		log.Printf("INFO: media for assetID: %s exists in cache", assetID)
-		return url, nil
-	}
-
-	// get asset data
-	mediaData, err := m.GetAsset(assetID)
-	if err != nil {
-		log.Printf("ERROR: getting asset error: %v", err)
-	}
-
-	// get type
-	tp := strings.Split(mediaData.Type, "/")
-	if len(tp) != 2 {
-		return "", fmt.Errorf("wrong type: %s", mediaData.Type)
-	}
-
-	assetID = "MC-" + assetID
-	key := assetID + "." + tp[1]
-
-	url = c.GetURL(key)
-
-	err = db.Set(assetID, url, time.Duration(time.Hour*8760)).Err() //1  year expiration ?
-	if err != nil {
-		return "", err
-	}
-
-	img, err := base64.StdEncoding.DecodeString(mediaData.Data)
-	if err != nil {
-		log.Printf("ERROR: BASE64 decoding error: %v", err)
-	}
-
-	err = c.Put(key, img)
-	if err != nil {
-		return "", err
-	}
-
-	return url, nil
-}
-
-func (h handler) Delete(tokens []string, caused, reason string) ([]api.TokenStatus, error) {
-
-	tokenStatuses, err := m.Delete(tokens, caused, reason)
-	if err != nil {
-		return nil, err
-	}
-	ts := []api.TokenStatus{}
-	for _, t := range tokenStatuses {
-		ts = append(ts, api.TokenStatus{
-			TokenUniqueReference: t.TokenUniqueReference,
-			Status:               t.Status,
-			StatusTimestamp:      t.StatusTimestamp,
-			SuspendedBy:          t.SuspendedBy,
+		data, _ := json.Marshal(database.TokenData{
+			OutSystem:       outSystem,
+			RequestorID:     requestorID,
+			Status:          status,
+			StatusTimestamp: statusTimestamp,
+			AssetURL:        assetURL,
+			Last4:           last4,
 		})
+
+		err = db.Set(mcPrefix+tokenUniqueReference, data, 0).Err()
+		if err != nil {
+			log.Printf("ERROR: token info storing error: %v", err)
+		} else {
+			log.Printf("INFO: stored info for token %s: %s", mcPrefix+tokenUniqueReference, data)
+		}
+	case "VISA":
+		log.Print("unsupported yet card type")
+	default:
+		log.Print("unsupported card type")
 	}
-	return ts, nil
+
 }
 
-func (h handler) Transact(tur string) (string, string, string, error) {
+func (h handler) storeAsset(typ, assetID string) (string, error) {
+	switch typ {
+	case "MC":
+		// check asset existance in cache
+		url, err := db.Get(mcPrefix + assetID).Result()
+		if err == nil {
+			log.Printf("INFO: media for assetID: %s exists in cache", assetID)
+			return url, nil
+		}
 
-	res, err := m.Transact(tur)
-	if err != nil {
-		return "", "", "", err
+		// get asset data
+		mediaData, err := m.GetAsset(assetID)
+		if err != nil {
+			return "", err
+		}
+
+		// get type
+		tp := strings.Split(mediaData.Type, "/")
+		if len(tp) != 2 {
+			return "", fmt.Errorf("wrong type: %s", mediaData.Type)
+		}
+
+		assetID = mcPrefix + assetID
+		key := assetID + "." + tp[1]
+
+		url = c.GetURL(key)
+
+		err = db.Set(assetID, url, time.Duration(time.Hour*8760)).Err() //1  year expiration ?
+		if err != nil {
+			return "", err
+		}
+
+		img, err := base64.StdEncoding.DecodeString(mediaData.Data)
+		if err != nil {
+			log.Printf("ERROR: BASE64 decoding error: %v", err)
+		}
+
+		err = c.Put(key, img)
+		if err != nil {
+			return "", err
+		}
+
+		return url, nil
+	case "VISA":
+		return "", errors.New("unsupported yet card type")
+	default:
+		return "", errors.New("unsupported card type")
 	}
-	// TO DO decide what to do with cryptograms
-	return res.AccountNumber, res.ApplicationExpiryDate, res.Track2Equivalent, nil
 }
 
-func mdesNotifyForfard(t mdes.MCNotificationTokenData) error {
+func (h handler) Delete(typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
+	switch typ {
+
+	case "MC":
+		tokenStatuses, err := m.Delete(tokens, caused, reason)
+		if err != nil {
+			return nil, err
+		}
+		ts := []api.TokenStatus{}
+		for _, t := range tokenStatuses {
+			ts = append(ts, api.TokenStatus{
+				TokenUniqueReference: t.TokenUniqueReference,
+				Status:               t.Status,
+				StatusTimestamp:      t.StatusTimestamp,
+				SuspendedBy:          t.SuspendedBy,
+			})
+		}
+		return ts, nil
+	case "VISA":
+		return nil, errors.New("unsupported yet card type")
+	default:
+		return nil, errors.New("unsupported card type")
+	}
+}
+
+func (h handler) Transact(typ, tur string) (string, string, string, error) {
+	switch typ {
+	case "MC":
+
+		res, err := m.Transact(tur)
+		if err != nil {
+			return "", "", "", err
+		}
+		// TO DO decide what to do with cryptograms
+		return res.AccountNumber, res.ApplicationExpiryDate, res.Track2Equivalent, nil
+	case "VISA":
+		return "", "", "", errors.New("unsupported yet card type")
+	default:
+		return "", "", "", errors.New("unsupported card type")
+	}
+}
+
+func mdesNotifyForfard(t mdes.NotificationTokenData) error {
 	// read token related info from storage
-	s, err := db.Get("MC-" + t.TokenUniqueReference).Result()
+	s, err := db.Get(mcPrefix + t.TokenUniqueReference).Result()
 	if err != nil {
 		if err != redis.Nil {
 			log.Printf("ERROR: bd access error: %v", err)

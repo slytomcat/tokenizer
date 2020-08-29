@@ -24,44 +24,44 @@ type CardAccountData struct {
 }
 
 // MCTokenInfo MC API
-type MCTokenInfo struct {
-	TokenUniqueReference string `json:"tokenUniqueReference"`
-	TokenPanSuffix       string `json:"tokenPanSuffix"`
-	TokenExpiry          string `json:"tokenExpiry"`
-	PanUniqueReference   string `json:"panUniqueReference"`
-	AccountPanSuffix     string `json:"accountPanSuffix"`
-	AccountPanExpiry     string `json:"accountPanExpiry"`
-	ProductCategory      string `json:"productCategory"`
-	DsrpCapable          bool   `json:"dsrpCapable"`
-	TokenAssuranceLevel  int    `json:"tokenAssuranceLevel"`
-}
+// type MCTokenInfo struct {
+// 	TokenUniqueReference string `json:"tokenUniqueReference"`
+// 	TokenPanSuffix       string `json:"tokenPanSuffix"`
+// 	TokenExpiry          string `json:"tokenExpiry"`
+// 	PanUniqueReference   string `json:"panUniqueReference"`
+// 	AccountPanSuffix     string `json:"accountPanSuffix"`
+// 	AccountPanExpiry     string `json:"accountPanExpiry"`
+// 	ProductCategory      string `json:"productCategory"`
+// 	DsrpCapable          bool   `json:"dsrpCapable"`
+// 	TokenAssuranceLevel  int    `json:"tokenAssuranceLevel"`
+//}
 
-// TokenInfo universal API
+// TokenInfo MC API struct
 type TokenInfo struct {
 	TokenUniqueReference    string
 	TokenPanSuffix          string
 	TokenExpiry             string
 	PanUniqueReference      string
-	PanSuffix               string
-	PanExpiry               string
+	AccountPanSuffix        string
+	AccountPanExpiry        string
 	BrandAssetID            string
 	ProductCategory         string
 	PaymentAccountReference string
 }
 
-// MCMediaContent bla-bla
-type MCMediaContent struct {
+// MediaContent bla-bla
+type MediaContent struct {
 	Type   string
 	Data   string
 	Heigth string
 	Width  string
 }
 
-// MCMediaContents bla-bla
-type MCMediaContents []MCMediaContent
+// MediaContents bla-bla
+type MediaContents []MediaContent
 
-// MCTokenStatus TokenStatus bla-bla
-type MCTokenStatus struct {
+// TokenStatus TokenStatus bla-bla
+type TokenStatus struct {
 	TokenUniqueReference string
 	Status               string
 	EventReasonCode      string
@@ -69,8 +69,8 @@ type MCTokenStatus struct {
 	SuspendedBy          []string
 }
 
-// MCProductConfig bla-bla
-type MCProductConfig struct {
+// ProductConfig bla-bla
+type ProductConfig struct {
 	// BrandLogoAssetID              string
 	// IssuerLogoAssetID             string
 	// CoBrandLogoAssetID            string
@@ -92,16 +92,16 @@ type MCProductConfig struct {
 	IssuerProductConfigCode       string
 }
 
-// MCNotificationTokensData bla-bla
-type MCNotificationTokensData struct {
-	Tokens []MCNotificationTokenData
+// NotificationTokensData bla-bla
+type NotificationTokensData struct {
+	Tokens []NotificationTokenData
 }
 
-// MCNotificationTokenData bla-bla
-type MCNotificationTokenData struct {
-	MCTokenStatus
-	ProductConfig MCProductConfig
-	TokenInfo     MCTokenInfo
+// NotificationTokenData bla-bla
+type NotificationTokenData struct {
+	TokenStatus
+	ProductConfig ProductConfig
+	TokenInfo     TokenInfo
 }
 
 // TransactData bla-bla
@@ -111,8 +111,8 @@ type TransactData struct {
 	TransactionType      string `json:"transactionType"`
 }
 
-// MCCryptogramData CryptogramData bla-bla
-type MCCryptogramData struct {
+// CryptogramData CryptogramData bla-bla
+type CryptogramData struct {
 	AccountNumber         string
 	ApplicationExpiryDate string
 	Track2Equivalent      string

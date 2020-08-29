@@ -38,7 +38,7 @@ func NewDB(conf Config) (*Db, error) {
 }
 
 // Set sets the value for key
-func (d *Db) Set(key, value string) error {
+func (d *Db) StoreTokenData(key, value string) error {
 	return nil
 }
 

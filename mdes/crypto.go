@@ -118,7 +118,7 @@ func (m MDESapi) encryptKey() (*rsa.PublicKey, string) {
 	return m.storedEncryptKey, m.storedEncryptKeyFP
 }
 
-func (m *MDESapi) initKeys(conf *MDESconf) error {
+func (m *MDESapi) initKeys(conf *Config) error {
 
 	// load signing key
 	// TO DO get password from secure storage

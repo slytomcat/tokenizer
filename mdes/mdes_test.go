@@ -19,11 +19,11 @@ var (
 	cb      string
 )
 
-func init() {
+func TestMain(m *testing.M) {
 	log.SetFlags(log.Lmicroseconds)
 
 	configData := struct {
-		MDES MDESconf
+		MDES Config
 	}{}
 
 	err := tools.ReadJSON("../config.json", &configData)
@@ -43,7 +43,7 @@ func init() {
 		keywfp{Key: "SandBoxKeys/key.p12", Fingerprint: "243e6992ea467f1cbb9973facfcc3bf17b5cd007"}, // for testing encryption a decryption
 	}
 
-	mdesAPI, err = NewMDESapi(&configData.MDES, func(n MCNotificationTokenData) error {
+	mdesAPI, err = NewMDESapi(&configData.MDES, func(n NotificationTokenData) error {
 		log.Printf("Notification: %+v", n)
 		return nil
 	})
@@ -52,6 +52,11 @@ func init() {
 	}
 
 	cb = "http://" + configData.MDES.CallBackHostPort + configData.MDES.CallBackURI
+
+	er := m.Run()
+	mdesAPI.ShutDown()
+	time.Sleep(time.Millisecond * 100)
+	os.Exit(er)
 }
 
 func TestPayloadEncryptionAndDecryption(t *testing.T) {
@@ -194,10 +199,6 @@ func TestTokenizeAPI(t *testing.T) {
 	}
 
 	log.Printf("Received token data:\n%+v", tData)
-
-	// wait for asset storage
-	time.Sleep(time.Second * 2)
-	log.Print("waiting for assets storage finished")
 }
 
 func TestTransactAPI(t *testing.T) {
@@ -228,7 +229,6 @@ func TestDeleteAPI(t *testing.T) {
 }
 
 func TestGetAssetAPI(t *testing.T) {
-	log.Println("___________First request ________________")
 
 	_, err := mdesAPI.GetAsset("3789637f-32a1-4810-a138-4bf34501c509")
 	if err != nil {
@@ -246,10 +246,6 @@ func TestNotifyInternal(t *testing.T) {
 	if reqID == "" {
 		t.Fatal(`reqID == ""`)
 	}
-	// wait for cache updates
-	time.Sleep(time.Second)
-	log.Println("Done")
-
 }
 
 func TestNotifyRequest(t *testing.T) {
@@ -267,8 +263,8 @@ func request(url string, payload []byte) ([]byte, error) {
 	request.Header.Add("Content-Type", "application/json")
 	request.Header.Add("Accept", "application/json")
 
-	log.Printf("    >>>>>>>    Request URL: %s\n", url)
-	log.Printf("    >>>>>>>    Request Body:\n%s\n", payload)
+	log.Printf("    >>>cb>>>>    Request URL: %s\n", url)
+	log.Printf("    >>>cb>>>>    Request Body:\n%s\n", payload)
 
 	responce, err := http.DefaultClient.Do(request)
 	if err != nil {
@@ -281,79 +277,7 @@ func request(url string, payload []byte) ([]byte, error) {
 		return nil, fmt.Errorf("responce body reading error: %w", err)
 	}
 
-	log.Printf("    <<<<<<<    Response: %s\n%s\n", responce.Status, body)
+	log.Printf("    <<<cb<<<<    Response: %s\n%s\n", responce.Status, body)
 
 	return body, nil
 }
-
-// func TestSearchUniversalAPI(t *testing.T) {
-// 	tData, err := mdesAPI.Search("98765432101", "", "",
-// 		CardAccountData{
-// 			AccountNumber: "5123456789012345",
-// 			ExpiryMonth:   "09",
-// 			ExpiryYear:    "21",
-// 			SecurityCode:  "123",
-// 		})
-
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	log.Printf("Received tokens data:\n%+v", tData)
-
-// 	tData, err = mdesAPI.Search("98765432101", "DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45", "",
-// 		CardAccountData{})
-
-// 	// error in sandbox
-// 	log.Printf("Received expected error:\n%v", err)
-
-// 	tData, err = mdesAPI.Search("98765432101", "", "FWSPMC000000000159f71f703d2141efaf04dd26803f922b",
-// 		CardAccountData{})
-
-// 	// error in sandbox
-// 	log.Printf("Received expected error:\n%v", err)
-// }
-
-// func TestGetTokenUniversalAPI(t *testing.T) {
-// 	tData, err := mdesAPI.GetToken("98765432101", "DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45")
-
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	log.Printf("Received token data:\n%+v", tData)
-// }
-
-// func TestSuspendUniversalAPI(t *testing.T) {
-// 	sStats, err := mdesAPI.Suspend(
-// 		[]string{
-// 			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
-// 			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",
-// 			"DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532",
-// 		},
-// 		"CARDHOLDER",
-// 		"OTHER",
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	log.Printf("Received data:\n%+v", sStats)
-// }
-
-// func TestUnsuspendUniversalAPI(t *testing.T) {
-// 	sStats, err := mdesAPI.Unsuspend(
-// 		[]string{
-// 			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
-// 			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",
-// 			"DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532",
-// 		},
-// 		"CARDHOLDER",
-// 		"OTHER",
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-
-// 	log.Printf("Received data:\n%+v", sStats)
-// }

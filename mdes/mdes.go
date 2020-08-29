@@ -21,17 +21,13 @@ import (
 	oauth "github.com/mastercard/oauth1-signer-go"
 )
 
-const (
-	prefix = "MC-" // prefix for keys in storage
-)
-
 type keywfp struct {
 	Key         string
 	Fingerprint string
 }
 
-// MDESconf configuration for MDES
-type MDESconf struct {
+// Config configuration for MDES
+type Config struct {
 	System           string
 	CallBackURI      string
 	CallBackHostPort string
@@ -61,7 +57,7 @@ type MDESapi struct {
 	// urlUnsuspend       string
 	// urlGetToken        string
 	// urlSearch          string
-	cbHandler func(MCNotificationTokenData) error
+	cbHandler func(NotificationTokenData) error
 	ShutDown  func() error // gracefull sutdown function
 }
 
@@ -75,7 +71,7 @@ type encryptedPayload struct {
 }
 
 // NewMDESapi creates new MDESapi implementation
-func NewMDESapi(conf *MDESconf, cbHandler func(MCNotificationTokenData) error) (*MDESapi, error) {
+func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData) error) (*MDESapi, error) {
 
 	mAPI := &MDESapi{
 		mutex:     &sync.RWMutex{}, // RWmutex requered for KeyExchangeManager
@@ -364,9 +360,9 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 			Type  string
 			Value string
 		}
-		MCTokenStatus
-		ProductConfig MCProductConfig
-		TokenInfo     MCTokenInfo
+		TokenStatus
+		ProductConfig ProductConfig
+		TokenInfo     TokenInfo
 		TokenDetail   encryptedPayload
 	}{}
 
@@ -400,22 +396,13 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 	if err != nil {
 		return nil, err
 	}
-
-	return &TokenInfo{
-		TokenUniqueReference:    responseStruct.TokenUniqueReference,
-		TokenPanSuffix:          responseStruct.TokenInfo.TokenPanSuffix,
-		TokenExpiry:             responseStruct.TokenInfo.TokenExpiry,
-		PanUniqueReference:      responseStruct.TokenInfo.PanUniqueReference,
-		PanSuffix:               responseStruct.TokenInfo.AccountPanSuffix,
-		PanExpiry:               responseStruct.TokenInfo.AccountPanExpiry,
-		BrandAssetID:            responseStruct.ProductConfig.CardBackgroundCombinedAssetID,
-		ProductCategory:         responseStruct.TokenInfo.ProductCategory,
-		PaymentAccountReference: tokenDetail.PaymentAccountReference,
-	}, nil
+	responseStruct.TokenInfo.PaymentAccountReference = tokenDetail.PaymentAccountReference
+	responseStruct.TokenInfo.BrandAssetID = responseStruct.ProductConfig.CardBackgroundCombinedAssetID
+	return &responseStruct.TokenInfo, nil
 }
 
 // Transact is the universal API implementation of MDES Transact API call
-func (m MDESapi) Transact(tur string) (*MCCryptogramData, error) {
+func (m MDESapi) Transact(tur string) (*CryptogramData, error) {
 
 	payload, _ := json.Marshal(struct {
 		ResponseHost         string `json:"responseHost"`
@@ -453,7 +440,7 @@ func (m MDESapi) Transact(tur string) (*MCCryptogramData, error) {
 	log.Printf("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
 	// <<< remove in PROD env
 
-	returnData := MCCryptogramData{}
+	returnData := CryptogramData{}
 
 	if err := json.Unmarshal(decrypted, &returnData); err != nil {
 		return nil, err
@@ -475,13 +462,13 @@ func (m MDESapi) Transact(tur string) (*MCCryptogramData, error) {
 // }
 
 // Delete is the universal API implementation of MDES Delete API call
-func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]MCTokenStatus, error) {
+func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 
 	return m.manageTokens(m.urlDelete, tokens, causedBy, reasonCode)
 }
 
 // manageTokens - backend for suspend|unsuspend|delete universal API implementation of MDES Transact API calls
-func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]MCTokenStatus, error) {
+func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 
 	payload, _ := json.Marshal(struct {
 		ResponseHost          string   `json:"responseHost"`
@@ -503,7 +490,7 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 	}
 
 	responceData := struct {
-		Tokens []MCTokenStatus
+		Tokens []TokenStatus
 	}{}
 
 	if err := json.Unmarshal(respone, &responceData); err != nil {
@@ -514,14 +501,14 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 }
 
 // GetAsset is the universal API implementation of MDES GetAsset API call
-func (m MDESapi) GetAsset(assetID string) (*MCMediaContent, error) {
+func (m MDESapi) GetAsset(assetID string) (*MediaContent, error) {
 
 	responce, err := m.request("GET", m.urlGetAsset+assetID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("getting asset error: %v", err)
 	}
 	responceData := struct {
-		MediaContents MCMediaContents
+		MediaContents MediaContents
 	}{}
 
 	if err := json.Unmarshal(responce, &responceData); err != nil {
@@ -563,7 +550,7 @@ func (m MDESapi) Notify(payload []byte) (string, error) {
 	// REMOVE IT BY MOVING TO MTF|PROD ! ! !
 
 	// unwrap decrypted data
-	responceData := MCNotificationTokensData{}
+	responceData := NotificationTokensData{}
 
 	err = json.Unmarshal(decrypted, &responceData)
 	if err != nil {
