@@ -81,15 +81,15 @@ func PanicIf(err error) {
 	}
 }
 
-// Updater returns update() and updated()
-func Updater() (func(*string, string), func() bool) {
-	updated := false
-	update := func(val *string, nVal string) {
-		if nVal != "" && *val != nVal {
-			*val = nVal
-			updated = true
-		}
-	}
-	report := func() bool { return updated }
-	return update, report
-}
+// // Updater returns update() and updated()
+// func Updater() (func(*string, string), *bool) {
+// 	updated := false
+// 	update := func(val *string, nVal string) {
+// 		if nVal != "" && *val != nVal {
+// 			*val = nVal
+// 			updated = true
+// 		}
+// 	}
+// 	//report := func() bool { return updated }
+// 	return update, &updated
+// }

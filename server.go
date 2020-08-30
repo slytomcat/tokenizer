@@ -53,9 +53,15 @@ type Config struct {
 func main() {
 
 	flag.Parse()
+
 	// get configuration
 	config := Config{}
-	tools.PanicIf(tools.GetConfig(*configFile, "TOKENIZER_CONF", &Config{}))
+	tools.PanicIf(tools.GetConfig(*configFile, "TOKENIZER_CONF", &config))
+
+	doMain(&config)
+}
+
+func doMain(config *Config) {
 
 	var err error
 	// connect to databse
@@ -108,7 +114,7 @@ func (h handler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (string
 			return "", "", err
 		}
 		// store token info for call back handling and start media cache update if requered
-		go h.storeTokenData(outS, trid, typ, tokenInfo.TokenUniqueReference, "INACTIVE", time.Now(), tokenInfo.AccountPanSuffix, tokenInfo.BrandAssetID)
+		go storeTokenData(outS, trid, typ, tokenInfo.TokenUniqueReference, "INACTIVE", time.Now(), tokenInfo.AccountPanSuffix, tokenInfo.BrandAssetID)
 
 		return tokenInfo.TokenUniqueReference, "INACTIVE", nil
 	case "VISA":
@@ -118,11 +124,11 @@ func (h handler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (string
 	}
 }
 
-func (h handler) storeTokenData(outSystem, requestorID, typ, tokenUniqueReference, status string, statusTimestamp time.Time, last4, assetID string) {
+func storeTokenData(outSystem, requestorID, typ, tokenUniqueReference, status string, statusTimestamp time.Time, last4, assetID string) {
 	switch typ {
 	case "MC":
 		// get asset url
-		assetURL, err := h.storeAsset(typ, assetID)
+		assetURL, err := storeAsset(typ, assetID)
 		if err != nil {
 			log.Printf("ERROR: asset storage error: %v", err)
 		}
@@ -136,11 +142,11 @@ func (h handler) storeTokenData(outSystem, requestorID, typ, tokenUniqueReferenc
 			Last4:           last4,
 		}
 
-		err = db.StoreTokenInfo(mcPrefix+tokenUniqueReference, data)
+		err = db.StoreTokenInfo(mcPrefix+tokenUniqueReference, &data)
 		if err != nil {
 			log.Printf("ERROR: token info storing error: %v", err)
 		} else {
-			log.Printf("INFO: stored info for token %s: %s", mcPrefix+tokenUniqueReference, data)
+			log.Printf("INFO: stored info for token %s: %+v", mcPrefix+tokenUniqueReference, data)
 		}
 	case "VISA":
 		log.Print("unsupported yet card type")
@@ -150,7 +156,7 @@ func (h handler) storeTokenData(outSystem, requestorID, typ, tokenUniqueReferenc
 
 }
 
-func (h handler) storeAsset(typ, assetID string) (string, error) {
+func storeAsset(typ, assetID string) (string, error) {
 	switch typ {
 	case "MC":
 		// check asset existance in cache
@@ -245,29 +251,19 @@ func (h handler) Transact(typ, tur string) (string, string, string, error) {
 // MDES call-back notification forward
 func mdesNotifyForfard(t mdes.NotificationTokenData) {
 	// read token related info from storage
-	tokenData, err := db.GetTokenInfo(mcPrefix + t.TokenUniqueReference)
+	tData, err := db.GetTokenInfo(mcPrefix + t.TokenUniqueReference)
 	if err != nil {
 		log.Printf("ERROR: getting token info from db error: %v", err)
 		return
 	}
-
-	// get asset URL and update the token asset if it is changed
-	assetURL, err := m.GetAsset(t.ProductConfig.CardBackgroundCombinedAssetID)
+	// update token data asynchronously
+	timeStamp, err := time.Parse("", t.StatusTimestamp)
 	if err != nil {
-		log.Printf("ERROR: getting asset error: %v", err)
+		timeStamp = time.Now()
 	}
+	go storeTokenData(tData.OutSystem, tData.RequestorID, "MC", t.TokenUniqueReference, t.Status, timeStamp, t.TokenInfo.AccountPanSuffix, t.ProductConfig.CardBackgroundCombinedAssetID)
 
-	// if token data changed then update it in DB
-	update, updated := updater()
-	update(&tokenData.AssetURL, assetURL)
-	update(&tokenData.Last4, t.TokenInfo.AccountPanSuffix)
-	update(&tokenData.Status, t.Status)
-	update(&tokenData.StatusTimestamp, t.StatusTimestamp)
-	if updated() {
-		err := db.StoreTokenInfo(t.TokenUniqueReference, tokenData)
-	}
-
-	log.Printf("INFO: notification for token/system/requestorId/assetURL: %s/%s/%s/%s", t.TokenUniqueReference, storedTokenData.OutSystem, storedTokenData.RequestorID, assetURL)
+	log.Printf("INFO: notification for token/system/requestorId/assetURL: %s/%s/%s", t.TokenUniqueReference, tData.OutSystem, tData.RequestorID)
 
 	// TO DO:
 	// Get oUtSystem call-back URL from DB
@@ -283,17 +279,6 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 	//      log the problem
 	//      return (leaving notification record in database it will be hanled by scaner)
 	// delete notification record from db^ delete("notify"+prefix+t.TokenUniqueReference+timeStamp)
-	return nil
+	return
 
-}
-
-func updater() (func(*string, string), func() bool) {
-	updated = false
-	update := func(val *string, nVal string) {
-		if nVal != "" && *val != nVal {
-			*val = nVal
-			updated = true
-		}
-	}
-	report := func() bool { return updated }
 }

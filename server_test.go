@@ -19,6 +19,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	tools "github.com/slytomcat/tokenizer/tools"
 )
 
 var (
@@ -30,20 +32,16 @@ var (
 func TestMain(m *testing.M) {
 
 	log.SetFlags(log.Lmicroseconds)
-	// preporations
+	// preparations
 	cnf := Config{}
-	err := tools.GetConfig(*configFile, )
+	err := tools.GetConfig("config.json", "TOKENIZER_CONF", &cnf)
 	cbURL = "http://" + cnf.MDES.CallBackHostPort + cnf.MDES.CallBackURI
 	apiURL = "http://" + cnf.API.HostPort
 
-	go main()
-
-	var err error
-
 	outputRe, err = regexp.Compile(`"Data":"[^"]*"`)
-	if err != nil {
-		panic(fmt.Errorf("regexp creation error: %w", err))
-	}
+	tools.PanicIf(err)
+
+	go doMain(&cnf)
 
 	time.Sleep(time.Second)
 	// run tests
