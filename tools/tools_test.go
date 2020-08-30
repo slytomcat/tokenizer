@@ -136,25 +136,25 @@ func TestGetConfig(t *testing.T) {
 	}
 }
 
-// func TestUpdater(t *testing.T) {
-// 	update, updated := Updater()
-// 	val := "val"
-// 	valN := val
-// 	update(&val, valN)
-// 	if *updated {
-// 		t.Fatal("no changes reports update")
-// 	}
-// 	valN = "new val"
-// 	update(&val, valN)
-// 	if !*updated {
-// 		t.Fatal("changes reports no update")
-// 	}
-// 	valN = val
-// 	update(&val, valN)
-// 	if !*updated {
-// 		t.Fatal("no changes after cahnges reports no update")
-// 	}
-// }
+func TestUpdater(t *testing.T) {
+	update, updated := Updater()
+	val := "val"
+	valN := val
+	update(&val, valN)
+	if *updated {
+		t.Fatal("no changes reports update")
+	}
+	valN = "new val"
+	update(&val, valN)
+	if !*updated {
+		t.Fatal("changes reports no update")
+	}
+	valN = val
+	update(&val, valN)
+	if !*updated {
+		t.Fatal("no changes after cahnges reports no update")
+	}
+}
 
 func TestPanicIfNO(t *testing.T) {
 	defer func() {

@@ -145,7 +145,7 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData)) (*MDESapi, 
 		if !errors.Is(err, http.ErrServerClosed) {
 			panic(err)
 		}
-		log.Printf("INFO: %v", err)
+		log.Printf("INFO: MDES callback service: %v", err)
 	}()
 
 	return mAPI, nil
@@ -401,6 +401,7 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 	if err != nil {
 		return nil, err
 	}
+	responseStruct.TokenInfo.TokenUniqueReference = responseStruct.TokenUniqueReference
 	responseStruct.TokenInfo.PaymentAccountReference = tokenDetail.PaymentAccountReference
 	responseStruct.TokenInfo.BrandAssetID = responseStruct.ProductConfig.CardBackgroundCombinedAssetID
 	return &responseStruct.TokenInfo, nil

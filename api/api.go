@@ -90,7 +90,7 @@ func NewAPI(conf *Config, handler PGAPI) *Handler {
 		if !errors.Is(err, http.ErrServerClosed) {
 			panic(err)
 		}
-		log.Printf("INFO: %v", err)
+		log.Printf("INFO: API service: %v", err)
 	}()
 
 	return &hendl

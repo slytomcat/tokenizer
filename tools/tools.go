@@ -53,6 +53,7 @@ func ErrorCollector(name string) (func(error), func() error) {
 func Debug(format string, args ...interface{}) {
 	if DEBUG {
 		fmt.Printf("DEBUG: "+format, args...)
+		fmt.Println()
 	}
 }
 
@@ -81,15 +82,15 @@ func PanicIf(err error) {
 	}
 }
 
-// // Updater returns update() and updated()
-// func Updater() (func(*string, string), *bool) {
-// 	updated := false
-// 	update := func(val *string, nVal string) {
-// 		if nVal != "" && *val != nVal {
-// 			*val = nVal
-// 			updated = true
-// 		}
-// 	}
-// 	//report := func() bool { return updated }
-// 	return update, &updated
-// }
+// Updater returns update() and updated()
+func Updater() (func(*string, string), *bool) {
+	updated := false
+	update := func(val *string, nVal string) {
+		if nVal != "" && *val != nVal {
+			*val = nVal
+			updated = true
+		}
+	}
+	//report := func() bool { return updated }
+	return update, &updated
+}

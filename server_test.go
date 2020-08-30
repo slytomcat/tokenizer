@@ -137,5 +137,5 @@ func TestServerKill(t *testing.T) {
 	if !bytes.Contains(buf, []byte("http: Server closed")) {
 		t.Errorf("received unexpected output: %s", buf)
 	}
-	log.Printf("%s", buf)
+	fmt.Printf("%s", buf)
 }

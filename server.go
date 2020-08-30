@@ -159,6 +159,10 @@ func storeTokenData(outSystem, requestorID, typ, tokenUniqueReference, status st
 func storeAsset(typ, assetID string) (string, error) {
 	switch typ {
 	case "MC":
+		// check assetID value
+		if assetID == "" {
+			return "", errors.New("AssetID = \"\"")
+		}
 		// check asset existance in cache
 		url, err := db.GetAsset(mcPrefix + assetID)
 		if err == nil {
@@ -256,14 +260,28 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 		log.Printf("ERROR: getting token info from db error: %v", err)
 		return
 	}
-	// update token data asynchronously
-	timeStamp, err := time.Parse("", t.StatusTimestamp)
+	tools.Debug("received from DB: %+v", tData)
+
+	assetURL, err := storeAsset("MC", t.ProductConfig.CardBackgroundCombinedAssetID)
+	// update token data
+	timeStamp, err := time.Parse(time.RFC3339, t.StatusTimestamp)
 	if err != nil {
 		timeStamp = time.Now()
 	}
-	go storeTokenData(tData.OutSystem, tData.RequestorID, "MC", t.TokenUniqueReference, t.Status, timeStamp, t.TokenInfo.AccountPanSuffix, t.ProductConfig.CardBackgroundCombinedAssetID)
+	// update only new data if data received
+	update, updated := tools.Updater()
+	update(&tData.AssetURL, assetURL)
+	update(&tData.Last4, t.TokenInfo.AccountPanSuffix)
+	update(&tData.Status, t.Status)
+	if t.StatusTimestamp != "" {
+		tData.StatusTimestamp = timeStamp
+		*updated = true
+	}
+	if *updated {
+		db.StoreTokenInfo(mcPrefix+t.TokenUniqueReference, tData)
+	}
 
-	log.Printf("INFO: notification for token/system/requestorId/assetURL: %s/%s/%s", t.TokenUniqueReference, tData.OutSystem, tData.RequestorID)
+	log.Printf("INFO: notification for token/TokenData: %s/%+v", t.TokenUniqueReference, tData)
 
 	// TO DO:
 	// Get oUtSystem call-back URL from DB
