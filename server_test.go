@@ -31,7 +31,8 @@ func TestMain(m *testing.M) {
 
 	log.SetFlags(log.Lmicroseconds)
 	// preporations
-	cnf := getConfig(*configFile)
+	cnf := Config{}
+	err := tools.GetConfig(*configFile, )
 	cbURL = "http://" + cnf.MDES.CallBackHostPort + cnf.MDES.CallBackURI
 	apiURL = "http://" + cnf.API.HostPort
 

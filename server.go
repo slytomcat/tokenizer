@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -27,7 +26,7 @@ const (
 
 var (
 	m  *mdes.MDESapi
-	db *database.DBConnect
+	db database.Connector
 	c  *cache.Cache
 	// ConfigFile - is the path to the configuration file
 	configFile        = flag.String("config", "./config.json", "`path` to the configuration file")
@@ -51,45 +50,21 @@ type Config struct {
 	//VISA - section for future VISA configuration values
 }
 
-func getConfig(path string) *Config {
-
-	// try to read config file
-	configData := Config{}
-	err := tools.ReadJSON(path, &configData)
-	if err != nil {
-		log.Printf("WARNING: config file opening/reading/parsing error: %v", err)
-	}
-
-	// try to read config from environment
-	err = json.Unmarshal([]byte(os.Getenv("TOKENIZER_CONF")), &configData)
-	if err != nil {
-		log.Printf("WARNING: config environment variable parsing error: %v", err)
-	}
-
-	// REMOVE IT IN PROD
-	log.Printf("INFO: service configuration: %+v", configData)
-
-	return &configData
-}
-
 func main() {
-	var err error
 
 	flag.Parse()
+	// get configuration
+	config := Config{}
+	tools.PanicIf(tools.GetConfig(*configFile, "TOKENIZER_CONF", &Config{}))
 
-	config := getConfig(*configFile)
-
+	var err error
 	// connect to databse
 	db, err = database.NewDB(&config.DB)
-	if err != nil {
-		panic(err)
-	}
+	tools.PanicIf(err)
 
 	// create MasterCard MDES protocol adapter instance
 	m, err = mdes.NewMDESapi(&config.MDES, mdesNotifyForfard)
-	if err != nil {
-		panic(err)
-	}
+	tools.PanicIf(err)
 
 	// Initialize cache
 	c = cache.NewCache(&config.Cache)
@@ -159,9 +134,9 @@ func (h handler) storeTokenData(outSystem, requestorID, typ, tokenUniqueReferenc
 			StatusTimestamp: statusTimestamp,
 			AssetURL:        assetURL,
 			Last4:           last4,
-		})
+		}
 
-		err = db.StoreTokenInfo(mcPrefix+tokenUniqueReference, data))
+		err = db.StoreTokenInfo(mcPrefix+tokenUniqueReference, data)
 		if err != nil {
 			log.Printf("ERROR: token info storing error: %v", err)
 		} else {
@@ -268,20 +243,12 @@ func (h handler) Transact(typ, tur string) (string, string, string, error) {
 }
 
 // MDES call-back notification forward
-func mdesNotifyForfard(t mdes.NotificationTokenData)  {
+func mdesNotifyForfard(t mdes.NotificationTokenData) {
 	// read token related info from storage
-	s, err := db.GetAsset(mcPrefix + t.TokenUniqueReference)
+	tokenData, err := db.GetTokenInfo(mcPrefix + t.TokenUniqueReference)
 	if err != nil {
-		log.Printf("ERROR: getting token info from db error: %v" err)
+		log.Printf("ERROR: getting token info from db error: %v", err)
 		return
-	}
-
-	// unwrap stored token data
-	storedTokenData := database.TokenData{}
-	err = json.Unmarshal([]byte(s), &storedTokenData)
-	if err != nil {
-		log.Printf("ERROR: unmarshaling stored token data error: %v", err)
-		return 
 	}
 
 	// get asset URL and update the token asset if it is changed
@@ -290,10 +257,20 @@ func mdesNotifyForfard(t mdes.NotificationTokenData)  {
 		log.Printf("ERROR: getting asset error: %v", err)
 	}
 
+	// if token data changed then update it in DB
+	update, updated := updater()
+	update(&tokenData.AssetURL, assetURL)
+	update(&tokenData.Last4, t.TokenInfo.AccountPanSuffix)
+	update(&tokenData.Status, t.Status)
+	update(&tokenData.StatusTimestamp, t.StatusTimestamp)
+	if updated() {
+		err := db.StoreTokenInfo(t.TokenUniqueReference, tokenData)
+	}
+
 	log.Printf("INFO: notification for token/system/requestorId/assetURL: %s/%s/%s/%s", t.TokenUniqueReference, storedTokenData.OutSystem, storedTokenData.RequestorID, assetURL)
 
 	// TO DO:
-	// Get oUtSystem call-back URL from DB 
+	// Get oUtSystem call-back URL from DB
 	// Put formated notification into SQS
 	// forgot the rest:
 	// update notfication record: set("notify"+prefix+t.TokenUniqueReference+timeStamp, json.marshal(data + recipient), 0)
@@ -308,4 +285,15 @@ func mdesNotifyForfard(t mdes.NotificationTokenData)  {
 	// delete notification record from db^ delete("notify"+prefix+t.TokenUniqueReference+timeStamp)
 	return nil
 
+}
+
+func updater() (func(*string, string), func() bool) {
+	updated = false
+	update := func(val *string, nVal string) {
+		if nVal != "" && *val != nVal {
+			*val = nVal
+			updated = true
+		}
+	}
+	report := func() bool { return updated }
 }

@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"github.com/slytomcat/tokenizer/tools"
 )
 
 // Config - API configuration
@@ -53,7 +55,7 @@ func (h Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 
 // performs outSystem callback notification
 func callBack(url string, body []byte) error {
-	log.Printf("CallBack: %s\n%s", url, body)
+	log.Printf("INFO: CallBack: %s\n%s", url, body)
 
 	// TO DO: make call-back request to outSystem
 	// return err if responceCode is not 200
@@ -77,12 +79,12 @@ func NewAPI(conf *Config, handler PGAPI) *Handler {
 	server.Handler = hendl
 
 	go func() {
-		log.Printf("Starting API service at %s", conf.HostPort)
+		log.Printf("INFO: Starting API service at %s", conf.HostPort)
 		var err error
-		if conf.Cert != "" {
-			err = server.ListenAndServeTLS(conf.Cert, conf.Key)
-		} else {
+		if conf.Cert == "" && tools.DEBUG {
 			err = server.ListenAndServe()
+		} else {
+			err = server.ListenAndServeTLS(conf.Cert, conf.Key)
 		}
 
 		if !errors.Is(err, http.ErrServerClosed) {

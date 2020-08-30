@@ -29,6 +29,7 @@ import (
 	"sync"
 
 	oauth "github.com/mastercard/oauth1-signer-go"
+	tools "github.com/slytomcat/tokenizer/tools"
 )
 
 type keywfp struct {
@@ -66,7 +67,7 @@ type MDESapi struct {
 	// urlUnsuspend       string
 	// urlGetToken        string
 	// urlSearch          string
-	cbHandler func(NotificationTokenData) error
+	cbHandler func(NotificationTokenData)
 	ShutDown  func() error // adapter gracefull sutdown function
 }
 
@@ -79,8 +80,8 @@ type encryptedPayload struct {
 	Iv                   string `json:"iv"`                   //
 }
 
-// NewMDESapi creates new MDESapi adapter implementation
-func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData) error) (*MDESapi, error) {
+// NewMDESapi creates new MDESapi adapter implementation.
+func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData)) (*MDESapi, error) {
 
 	mAPI := &MDESapi{
 		mutex:     &sync.RWMutex{}, // RWmutex requered for KeyExchangeManager
@@ -90,7 +91,7 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData) error) (*MDE
 	var err error
 	mAPI.ourputRe, err = regexp.Compile(`"data":"[^"]*"`)
 	if err != nil {
-		log.Printf("regexp creation error: %v", err)
+		log.Printf("ERROR: regexp creation error: %v", err)
 	}
 
 	if err := mAPI.initKeys(conf); err != nil {
@@ -133,12 +134,12 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData) error) (*MDE
 	mAPI.ShutDown = func() error { return server.Shutdown(context.Background()) }
 
 	go func() {
-		log.Printf("Starting MDES callback service at %s", conf.CallBackHostPort)
+		log.Printf("INFO: Starting MDES callback service at %s", conf.CallBackHostPort)
 		var err error
-		if conf.TLSCert != "" {
-			err = server.ListenAndServeTLS(conf.TLSCert, conf.TLSKey)
-		} else {
+		if conf.TLSCert == "" && tools.DEBUG {
 			err = server.ListenAndServe()
+		} else {
+			err = server.ListenAndServeTLS(conf.TLSCert, conf.TLSKey)
 		}
 
 		if !errors.Is(err, http.ErrServerClosed) {
@@ -157,6 +158,7 @@ type callBackHandler struct {
 
 func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" || r.URL.Path != c.path {
+		log.Printf("ERROR: wrong metod/path: %s%s", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -164,14 +166,12 @@ func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("ERROR: notification body reading error:%v", err)
-		// TO DO: provide more error details
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	id, err := c.cbFunc(body)
 	if err != nil {
-		log.Printf("notification handling error: %v", err)
-		// TO DO: provide more error details
+		log.Printf("ERROR: notification handling error: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -203,6 +203,7 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 		return nil, fmt.Errorf("request signing error: %w", err)
 	}
 
+	// TO DO decide what to output in log/debug concole
 	log.Printf("    <<<<<<<    Request URL: %s\n", url)
 	log.Printf("    <<<<<<<    Request Heder:\n%v\n", request.Header)
 	log.Printf("    <<<<<<<    Request Body:\n%s\n", payload)
@@ -221,6 +222,7 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 
 	// fiter output
 	output := m.ourputRe.ReplaceAll(body, []byte(`"data":"--<--data skiped-->--"`))
+	// TO DO decide what to output in log/debug concole
 	log.Printf("    >>>>>>>    Response: %s\n%s\n", responce.Status, output)
 
 	// check the status code
@@ -354,10 +356,6 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 		},
 	})
 
-	// >>> remove in PROD env
-	// log.Print(string(payload))
-	// <<< remove in PROD env
-
 	response, err := m.request("POST", m.urlTokenize, payload)
 	if err != nil {
 		return nil, err
@@ -384,9 +382,7 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 		return nil, err
 	}
 
-	// >>> remove in PROD env
-	log.Printf("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
-	// <<< remove in PROD env
+	tools.Debug("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
 
 	tokenDetail := struct {
 		AccountHolderData struct {
@@ -445,9 +441,7 @@ func (m MDESapi) Transact(tur string) (*CryptogramData, error) {
 		return nil, err
 	}
 
-	// >>> remove in PROD env
-	log.Printf("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
-	// <<< remove in PROD env
+	tools.Debug("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
 
 	returnData := CryptogramData{}
 
@@ -473,11 +467,11 @@ func (m MDESapi) Transact(tur string) (*CryptogramData, error) {
 // Delete is the universal API implementation of MDES Delete API call
 func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 
-	return m.manageTokens(m.urlDelete, tokens, causedBy, reasonCode)
-}
+	//	return m.manageTokens(m.urlDelete, tokens, causedBy, reasonCode)
+	//}
 
-// manageTokens - backend for suspend|unsuspend|delete universal API implementation of MDES Transact API calls
-func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
+	// manageTokens - backend for suspend|unsuspend|delete universal API implementation of MDES Transact API calls
+	//func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 
 	payload, _ := json.Marshal(struct {
 		ResponseHost          string   `json:"responseHost"`
@@ -493,7 +487,7 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 		ReasonCode:            reasonCode,
 	})
 
-	respone, err := m.request("POST", url, payload)
+	respone, err := m.request("POST", m.urlDelete, payload) //url, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -550,7 +544,7 @@ func (m MDESapi) notify(payload []byte) (string, error) {
 		return reqData.RequestID, err
 	}
 
-	log.Printf("Notify decrypted payload:\n%s\n", decrypted)
+	tools.Debug("Notify decrypted payload:\n%s\n", decrypted)
 
 	// ! ! ! TESTING TRICK (REMOVE IT BY MOVING TO MTF):
 	// Falsificate decrypted data with the response from the Search Token request
@@ -567,7 +561,7 @@ func (m MDESapi) notify(payload []byte) (string, error) {
 	}
 
 	if len(responceData.Tokens) == 0 {
-		return reqData.RequestID, errors.New("no data in the list of Tokns")
+		return reqData.RequestID, errors.New("no data in the list of Tokens")
 	}
 
 	// forward notifications for each token
