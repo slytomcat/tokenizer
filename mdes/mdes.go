@@ -404,10 +404,14 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 	responseStruct.TokenInfo.TokenUniqueReference = responseStruct.TokenUniqueReference
 	responseStruct.TokenInfo.PaymentAccountReference = tokenDetail.PaymentAccountReference
 	responseStruct.TokenInfo.BrandAssetID = responseStruct.ProductConfig.CardBackgroundCombinedAssetID
+	// ! ! ! TESTING TRICK (REMOVE IT BY MOVING TO MTF):
+	// Falsificate assetID
+	responseStruct.TokenInfo.BrandAssetID = "3789637f-32a1-4810-a138-4bf34501c509"
+	// REMOVE IT BY MOVING TO MTF|PROD ! ! !
 	return &responseStruct.TokenInfo, nil
 }
 
-// Transact is the universal API implementation of MDES Transact API call
+// Transact implementation of MDES Transact API call
 func (m MDESapi) Transact(tur string) (*CryptogramData, error) {
 
 	payload, _ := json.Marshal(struct {
@@ -453,19 +457,19 @@ func (m MDESapi) Transact(tur string) (*CryptogramData, error) {
 	return &returnData, nil
 }
 
-// // Suspend is the universal API implementation of MDES Suspend API call
+// // Suspend is implementation of MDES Suspend API call
 // func (m MDESapi) Suspend(tokens []string, causedBy, reasonCode string) ([]MCTokenStatus, error) {
 
 // 	return m.manageTokens(m.urlSuspend, tokens, causedBy, reasonCode)
 // }
 
-// // Unsuspend is the universal API implementation of MDES Unsuspend API call
+// // Unsuspend is implementation of MDES Unsuspend API call
 // func (m MDESapi) Unsuspend(tokens []string, causedBy, reasonCode string) ([]MCTokenStatus, error) {
 
 // 	return m.manageTokens(m.urlUnsuspend, tokens, causedBy, reasonCode)
 // }
 
-// Delete is the universal API implementation of MDES Delete API call
+// Delete is implementation of MDES Delete API call
 func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 
 	//	return m.manageTokens(m.urlDelete, tokens, causedBy, reasonCode)
@@ -572,7 +576,7 @@ func (m MDESapi) notify(payload []byte) (string, error) {
 	return reqData.RequestID, nil
 }
 
-// //GetToken is the universal API implementation of MDES SearchToken API call
+// //GetToken is implementation of MDES SearchToken API call
 // func (m MDESapi) GetToken(RequestorID, tokenURef string) (*TokenInfo, error) {
 
 // 	// TO DO: generate random ID
@@ -647,7 +651,7 @@ func (m MDESapi) notify(payload []byte) (string, error) {
 // 	}, nil
 // }
 
-// // Search is the universal API implementation of MDES SearchToken API call
+// // Search is implementation of MDES SearchToken API call
 // func (m MDESapi) Search(RequestorID, tokenURef, panURef string, cardData CardAccountData) ([]MCTokenStatus, error) {
 
 // 	// TO DO: generate random ID
