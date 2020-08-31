@@ -19,6 +19,8 @@ type TokenData struct {
 type OutSysInfo struct {
 	OutSystem string
 	CBURL     string
+	// EncryptKey *rsa.PublicKey
+	// DecryptKey *rsa.PrivateKey
 }
 
 // TRSecrets - secrets to singn/encrypt/decrypt requests/responces to/from VISA API
@@ -33,8 +35,8 @@ type TRSecrets struct {
 type Connector interface {
 	StoreTokenInfo(tur string, ti *TokenData) error
 	GetTokenInfo(tur string) (*TokenData, error)
-	StoreAsset(AssetID, url string) error
-	GetAsset(AssetID string) (string, error)
+	StoreAsset(assetID, url string) error
+	GetAsset(assetID string) (string, error)
 	StoreOutSysInfo(oSys string, oSysInfo *OutSysInfo) error
 	GetOutSysInfo(oSys string) (*OutSysInfo, error)
 	StoreTRSecrets(trid string, trSecrets *TRSecrets) error
