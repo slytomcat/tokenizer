@@ -60,3 +60,23 @@ func (d *Db) GetAsset(key string) (string, error) {
 	// select * from Asset where assetID=:key
 	return "", nil
 }
+
+// StoreOutSysInfo - stores out system info
+func (d *Db) StoreOutSysInfo(oSys string, oSysInfo *OutSysInfo) error {
+	return nil
+}
+
+// GetOutSysInfo - stores out system info
+func (d *Db) GetOutSysInfo(oSys string) (*OutSysInfo, error) {
+	return nil, nil
+}
+
+// StoreTRSecrets - stores out system info
+func (d *Db) StoreTRSecrets(trid string, trSecrets *TRSecrets) error {
+	return nil
+}
+
+// GetTRSecrets - stores out system info
+func (d *Db) GetTRSecrets(trid string) (*TRSecrets, error) {
+	return nil, nil
+}

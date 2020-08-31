@@ -21,7 +21,8 @@ import (
 )
 
 const (
-	mcPrefix = "MC-"
+	mcPrefix   = "MC-"
+	visaPrefix = "VS-"
 )
 
 var (
@@ -96,6 +97,7 @@ func doMain(config *Config) {
 
 type handler struct{}
 
+// Tokenize make token from card. It returns TUR and it's status
 func (h handler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (string, string, error) {
 	if len(exp) != 4 {
 		return "", "", errors.New("wrong length of exp (must be 4)")
@@ -124,6 +126,7 @@ func (h handler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (string
 	}
 }
 
+// storeTokenData - stores token data for future token updates from MPS
 func storeTokenData(outSystem, requestorID, typ, tokenUniqueReference, status string, statusTimestamp time.Time, last4, assetID string) {
 	switch typ {
 	case "MC":
@@ -156,6 +159,7 @@ func storeTokenData(outSystem, requestorID, typ, tokenUniqueReference, status st
 
 }
 
+// storeAsset gets asset from MPS if it is not cached and store it into cache. It returns URL to stored image and error.
 func storeAsset(typ, assetID string) (string, error) {
 	switch typ {
 	case "MC":
@@ -210,6 +214,7 @@ func storeAsset(typ, assetID string) (string, error) {
 	}
 }
 
+// Delete deletes tokens ad return the current tokens statuses
 func (h handler) Delete(typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
 	switch typ {
 
@@ -235,6 +240,7 @@ func (h handler) Delete(typ string, tokens []string, caused, reason string) ([]a
 	}
 }
 
+// Transact - returns the token DPAN and cryptogramms for payment by TUR
 func (h handler) Transact(typ, tur string) (string, string, string, error) {
 	switch typ {
 	case "MC":
@@ -284,9 +290,9 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 	log.Printf("INFO: notification for token/TokenData: %s/%+v", t.TokenUniqueReference, tData)
 
 	// TO DO:
-	// Get oUtSystem call-back URL from DB
-	// Put formated notification into SQS
-	// forgot the rest:
+	// Get outSystem call-back URL from DB
+	// Put formated notification and URL into SQS
+	// forget the rest:
 	// update notfication record: set("notify"+prefix+t.TokenUniqueReference+timeStamp, json.marshal(data + recipient), 0)
 	// l: send notification
 	// get responce
