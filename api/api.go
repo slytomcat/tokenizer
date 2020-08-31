@@ -70,13 +70,13 @@ func NewAPI(conf *Config, handler PGAPI) *Handler {
 		Addr: conf.HostPort,
 	}
 
-	hendl := Handler{
+	apiHandler := Handler{
 		apiHandler: handler,
 		ShutDown:   func() error { return server.Shutdown(context.Background()) },
 		CallBack:   callBack,
 	}
 
-	server.Handler = hendl
+	server.Handler = apiHandler
 
 	go func() {
 		log.Printf("INFO: Starting API service at %s", conf.HostPort)
@@ -93,7 +93,7 @@ func NewAPI(conf *Config, handler PGAPI) *Handler {
 		log.Printf("INFO: API service: %v", err)
 	}()
 
-	return &hendl
+	return &apiHandler
 }
 
 // test:
