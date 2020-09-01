@@ -54,6 +54,9 @@ type Config struct {
 func main() {
 
 	flag.Parse()
+	log.SetFlags(log.Lmicroseconds)
+	log.Printf("tokenizer v.%s", version)
+	log.Printf("debug %v", tools.DEBUG)
 
 	// get configuration
 	config := Config{}
@@ -63,7 +66,6 @@ func main() {
 }
 
 func doMain(config *Config) {
-
 	var err error
 	// connect to databse
 	db, err = database.NewDB(&config.DB)

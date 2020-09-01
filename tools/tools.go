@@ -8,7 +8,8 @@ import (
 )
 
 // DEBUG is the flag that allove to output debugging information. It should be disabled in PROD environment
-var DEBUG = true
+var DEBUG = debug == "y"
+var debug = "y" // cange it via ldflags to disable debugging in PROD
 
 // ReadFile returns []byte buffer with file contet
 func ReadFile(path string) ([]byte, error) {
