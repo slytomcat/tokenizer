@@ -2,6 +2,8 @@ package database
 
 // import (
 // 	"database/sql"
+// 	"errors"
+
 // 	// MySQL engine
 // 	_ "github.com/go-sql-driver/mysql"
 // )
@@ -37,27 +39,93 @@ package database
 // }
 
 // // StoreTokenInfo - stores token info
-// func (d *Db) StoreTokenInfo(key string, ti *TokenData) error {
-// 	// insert|update into TokenInfo where tur=:key
-// 	return nil
+// func (d *Db) StoreTokenInfo(tur string, ti *TokenData) error {
+// 	_, err := d.db.Exec(
+// 		`INSERT INTO TokenInfo(
+// 						tur,
+// 						osys,
+// 						trid,
+// 						status,
+// 						statustimestamp,
+// 						last4,
+// 						assetURL
+// 						)
+// 			VALUES(?,?,?,?,?,?,?)
+// 		ON DUPLICATE KEY UPDATE
+// 			osys=VALUES(osys),
+// 		 	trid=VALUES(trid),
+// 		 	status=VALUES(status),
+// 			statustimestamp=VALUES(statustimestamp),
+// 			last4=VALUES(last4),
+// 			assetURL=VALUES(assetURL)`,
+// 		tur,
+// 		ti.OutSystem,
+// 		ti.RequestorID,
+// 		ti.Status,
+// 		ti.StatusTimestamp,
+// 		ti.Last4,
+// 		ti.AssetURL,
+// 	)
+
+// 	return err
 // }
 
 // // GetTokenInfo returns the token info
-// func (d *Db) GetTokenInfo(key string) (*TokenData, error) {
-// 	// select * from TokenInfo where tur=:key
-// 	return nil, nil
+// func (d *Db) GetTokenInfo(tur string) (*TokenData, error) {
+// 	ti := TokenData{}
+// 	row := d.db.QueryRow(`
+// 		SELECT
+// 			tur,
+// 			osys,
+// 			trid,
+// 			status,
+// 			statustimestamp,
+// 			last4,
+// 			assetURL
+// 		FROM TokenInfo
+// 		WHERE tur=?
+// 		`,
+// 		tur,
+// 	)
+// 	switch err := row.Scan(&ti.OutSystem, &ti.RequestorID, &ti.Status, &ti.StatusTimestamp, &ti.Last4, &ti.AssetURL); err {
+// 	case sql.ErrNoRows:
+// 		return nil, errors.New("no rows were returned")
+// 	case nil:
+// 		return &ti, nil
+// 	default:
+// 		return nil, err
+// 	}
 // }
 
 // // StoreAsset - stores asset info
-// func (d *Db) StoreAsset(key, url string) error {
-// 	// insert|update Asset where assetID=:key
-// 	return nil
+// func (d *Db) StoreAsset(id, url string) error {
+// 	_, err := d.db.Exec(
+// 		`INSERT INTO asset(id, url)
+// 			VALUES(?, ?)
+// 		ON DUPLICATE KEY UPDATE
+// 		    url=VALUES(url)`,
+// 		id, url)
+
+// 	return err
 // }
 
 // // GetAsset returns the token info
-// func (d *Db) GetAsset(key string) (string, error) {
-// 	// select * from Asset where assetID=:key
-// 	return "", nil
+// func (d *Db) GetAsset(id string) (string, error) {
+// 	url := ""
+// 	row := d.db.QueryRow(`
+// 		SELECT url
+// 		FROM asset
+// 		WHERE id=?`,
+// 		id,
+// 	)
+// 	switch err := row.Scan(&url); err {
+// 	case sql.ErrNoRows:
+// 		return "", errors.New("no rows were returned")
+// 	case nil:
+// 		return url, nil
+// 	default:
+// 		return "", err
+// 	}
 // }
 
 // // StoreOutSysInfo - stores out system info
