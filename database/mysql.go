@@ -130,20 +130,84 @@ package database
 
 // // StoreOutSysInfo - stores out system info
 // func (d *Db) StoreOutSysInfo(oSys string, oSysInfo *OutSysInfo) error {
-// 	return nil
+// 	_, err := d.db.Exec(
+// 		`INSERT INTO osysyinfo(
+// 						osys,
+// 						cburl
+// 						)
+// 			VALUES(?,?)
+// 		ON DUPLICATE KEY UPDATE
+// 			cburl=VALUES(cburl)`,
+// 		oSys,
+// 		oSysInfo.CBURL,
+// 	)
+// 	return err
 // }
 
 // // GetOutSysInfo - stores out system info
 // func (d *Db) GetOutSysInfo(oSys string) (*OutSysInfo, error) {
-// 	return nil, nil
+// 	oi := OutSysInfo{}
+// 	row := d.db.QueryRow(`
+// 		SELECT
+// 			cburl
+// 		FROM osysyinfo
+// 		WHERE osys=?`,
+// 		oSys,
+// 	)
+// 	switch err := row.Scan(&oi.CBURL); err {
+// 	case sql.ErrNoRows:
+// 		return nil, errors.New("no rows were returned")
+// 	case nil:
+// 		return &oi, nil
+// 	default:
+// 		return nil, err
+// 	}
 // }
 
 // // StoreTRSecrets - stores out system info
 // func (d *Db) StoreTRSecrets(trid string, trSecrets *TRSecrets) error {
-// 	return nil
+// 	_, err := d.db.Exec(
+// 		`INSERT INTO trsecrets(
+// 						trid,
+// 						apikey,
+// 						decyptkey,
+// 						encryptkey,
+// 						signkey
+// 						)
+// 			VALUES(?,?,?,?,?)
+// 		ON DUPLICATE KEY UPDATE
+// 		apikey=VALUES(apikey),
+// 		decyptkey=VALUES(decyptkey),
+// 		encryptkey=VALUES(encryptkey),
+// 		signkey=VALUES(signkey)`,
+// 		trid,
+// 		trSecrets.APIKey,
+// 		trSecrets.DecryptKey,
+// 		trSecrets.EncryptKey,
+// 		trSecrets.SingKey,
+// 	)
+// 	return err
 // }
 
 // // GetTRSecrets - stores out system info
 // func (d *Db) GetTRSecrets(trid string) (*TRSecrets, error) {
-// 	return nil, nil
+// 	ts := TRSecrets{}
+// 	row := d.db.QueryRow(`
+// 		SELECT
+// 			apikey,
+// 			decyptkey,
+// 			encryptkey,
+// 			signkey
+// 		FROM trsecrets
+// 		WHERE trid=?`,
+// 		trid,
+// 	)
+// 	switch err := row.Scan(&ts.APIKey, &ts.DecryptKey, &ts.EncryptKey, &ts.SingKey); err {
+// 	case sql.ErrNoRows:
+// 		return nil, errors.New("no rows were returned")
+// 	case nil:
+// 		return &ts, nil
+// 	default:
+// 		return nil, err
+// 	}
 // }

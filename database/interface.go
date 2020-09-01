@@ -17,7 +17,6 @@ type TokenData struct {
 
 // OutSysInfo - out system information
 type OutSysInfo struct {
-	OutSystem string
 	CBURL     string
 	// EncryptKey *rsa.PublicKey
 	// DecryptKey *rsa.PrivateKey
