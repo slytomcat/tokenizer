@@ -43,6 +43,7 @@ func (db *DBConnect) set(key string, value interface{}, ttl time.Duration) error
 func (db *DBConnect) get(key string, value interface{}) error {
 	data, err := db.r.Get(key).Result()
 	if err != nil {
+		value = nil //
 		if err == redis.Nil {
 			return fmt.Errorf("%s was not found in DB", key)
 		}
@@ -59,18 +60,7 @@ func (db *DBConnect) StoreTokenInfo(tur string, ti *TokenData) error {
 // GetTokenInfo returns the token info
 func (db *DBConnect) GetTokenInfo(tur string) (*TokenData, error) {
 	data := TokenData{}
-	err := db.get(tur, &data)
-	return &data, err
-}
-
-// StoreAsset - stores asset URL
-func (db *DBConnect) StoreAsset(asset, url string) error {
-	return db.r.Set(asset, url, 0).Err()
-}
-
-// GetAsset returns the asset URL
-func (db *DBConnect) GetAsset(asset string) (string, error) {
-	return db.r.Get(asset).Result()
+	return &data, db.get(tur, &data)
 }
 
 // StoreOutSysInfo - stores out system info
@@ -81,8 +71,7 @@ func (db *DBConnect) StoreOutSysInfo(oSys string, oSysInfo *OutSysInfo) error {
 // GetOutSysInfo - stores out system info
 func (db *DBConnect) GetOutSysInfo(oSys string) (*OutSysInfo, error) {
 	data := OutSysInfo{}
-	err := db.get(oSys, &data)
-	return &data, err
+	return &data, db.get(oSys, &data)
 }
 
 // StoreTRSecrets - stores out system info
@@ -93,6 +82,16 @@ func (db *DBConnect) StoreTRSecrets(trid string, trSecrets *TRSecrets) error {
 // GetTRSecrets - stores out system info
 func (db *DBConnect) GetTRSecrets(trid string) (*TRSecrets, error) {
 	data := TRSecrets{}
-	err := db.get(trid, &data)
-	return &data, err
+	return &data, db.get(trid, &data)
+}
+
+// StoreAsset - stores asset URL
+func (db *DBConnect) StoreAsset(assetID string, asset *Asset) error {
+	return db.set(assetID, asset, 0)
+}
+
+// GetAsset returns the asset URL
+func (db *DBConnect) GetAsset(assetID string) (*Asset, error) {
+	data := Asset{}
+	return &data, db.get(assetID, &data)
 }

@@ -17,7 +17,7 @@ type TokenData struct {
 
 // OutSysInfo - out system information
 type OutSysInfo struct {
-	CBURL     string
+	CBURL string
 	// EncryptKey *rsa.PublicKey
 	// DecryptKey *rsa.PrivateKey
 }
@@ -30,14 +30,22 @@ type TRSecrets struct {
 	DecryptKey *rsa.PrivateKey
 }
 
+// Asset - asset data
+type Asset struct {
+	PicURL string // asset opicture url in cloud storage (s3)
+	// InactivePicURL       string
+	// MobilePicURL         string
+	// MobileInactivePicURL string
+}
+
 // Connector - database connection interface
 type Connector interface {
 	StoreTokenInfo(tur string, ti *TokenData) error
 	GetTokenInfo(tur string) (*TokenData, error)
-	StoreAsset(assetID, url string) error
-	GetAsset(assetID string) (string, error)
 	StoreOutSysInfo(oSys string, oSysInfo *OutSysInfo) error
 	GetOutSysInfo(oSys string) (*OutSysInfo, error)
 	StoreTRSecrets(trid string, trSecrets *TRSecrets) error
 	GetTRSecrets(trid string) (*TRSecrets, error)
+	StoreAsset(assetID string, asset *Asset) error
+	GetAsset(assetID string) (*Asset, error)
 }

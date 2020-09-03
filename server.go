@@ -170,10 +170,10 @@ func storeAsset(typ, assetID string) (string, error) {
 			return "", errors.New("AssetID = \"\"")
 		}
 		// check asset existance in cache
-		url, err := db.GetAsset(mcPrefix + assetID)
+		assetData, err := db.GetAsset(mcPrefix + assetID)
 		if err == nil {
 			log.Printf("INFO: media for assetID: %s exists in cache", assetID)
-			return url, nil
+			return assetData.PicURL, nil
 		}
 
 		// get asset data
@@ -191,9 +191,9 @@ func storeAsset(typ, assetID string) (string, error) {
 		assetID = mcPrefix + assetID
 		key := assetID + "." + tp[1]
 
-		url = c.GetURL(key)
+		url := c.GetURL(key)
 
-		err = db.StoreAsset(assetID, url)
+		err = db.StoreAsset(assetID, &database.Asset{PicURL: url})
 		if err != nil {
 			return "", err
 		}
