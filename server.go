@@ -268,6 +268,7 @@ func (h handler) Transact(typ, tur string) (string, string, string, error) {
 
 // MDES call-back notification forward
 func mdesNotifyForfard(t mdes.NotificationTokenData) {
+
 	// read token related info from storage
 	tData, err := db.GetTokenInfo(mcPrefix + t.TokenUniqueReference)
 	if err != nil {
@@ -282,6 +283,7 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 	if err != nil {
 		timeStamp = time.Now()
 	}
+
 	// update only new data if data received
 	update, updated := tools.Updater()
 	update(&tData.AssetURL, assetURL)
@@ -295,22 +297,19 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 		db.StoreTokenInfo(mcPrefix+t.TokenUniqueReference, tData)
 	}
 
-	log.Printf("INFO: notification for token/TokenData: %s/%+v", t.TokenUniqueReference, tData)
+	// get data to make call-back to out system
+	osysData, err := db.GetOutSysInfo(tData.OutSystem)
+	if err != nil {
+		log.Printf("ERROR: getting out system info from db error: %v", err)
+		return
+	}
+
+	log.Printf("INFO: notification for outSytem: %s by cb URL: %s\nToken: %s TokenData: %+v", tData.OutSystem, osysData.CBURL, t.TokenUniqueReference, tData)
 
 	// TO DO:
-	// Get outSystem call-back URL from DB
 	// Put formated notification and URL into SQS
-	// forget the rest:
-	// update notfication record: set("notify"+prefix+t.TokenUniqueReference+timeStamp, json.marshal(data + recipient), 0)
-	// l: send notification
-	// get responce
-	// if no responce then
-	//   if the number of sending attempts is not exceeded
-	//      sleep and repeat from l
-	//   else
-	//      log the problem
-	//      return (leaving notification record in database it will be hanled by scaner)
-	// delete notification record from db^ delete("notify"+prefix+t.TokenUniqueReference+timeStamp)
+	// and ...
+	// forget the rest!
 	return
 
 }
