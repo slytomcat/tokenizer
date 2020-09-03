@@ -18,8 +18,8 @@ type TokenData struct {
 // OutSysInfo - out system information
 type OutSysInfo struct {
 	CBURL string
-	// EncryptKey *rsa.PublicKey
-	// DecryptKey *rsa.PrivateKey
+	// EncryptKey *rsa.PublicKey  // Key for sensitive data encryption in responces to out system requests
+	// DecryptKey *rsa.PrivateKey // Key for sensitive data decryption in requests from out system
 }
 
 // TRSecrets - secrets to singn/encrypt/decrypt requests/responces to/from VISA API
@@ -30,9 +30,9 @@ type TRSecrets struct {
 	DecryptKey *rsa.PrivateKey
 }
 
-// Asset - asset data
+// Asset - asset data: set of URLs on pictures in cloud storage
 type Asset struct {
-	PicURL string // asset opicture url in cloud storage (s3)
+	PicURL string
 	// InactivePicURL       string
 	// MobilePicURL         string
 	// MobileInactivePicURL string
