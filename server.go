@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rsa"
 	"encoding/base64"
 	"errors"
 	"flag"
@@ -11,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/slytomcat/tokenizer/configapi"
 
 	"github.com/slytomcat/tokenizer/api"
 	"github.com/slytomcat/tokenizer/cache"
@@ -26,12 +29,11 @@ const (
 )
 
 var (
-	m  *mdes.MDESapi
-	db database.Connector
-	c  *cache.Cache
-	// ConfigFile - is the path to the configuration file
-	configFile        = flag.String("config", "./config.json", "`path` to the configuration file")
-	version    string = "unknown version"
+	m          *mdes.MDESapi      // MDES API adapter
+	db         database.Connector // database adapter
+	c          *cache.Cache       // cache adaptor
+	configFile                    = flag.String("config", "./config.json", "`path` to the configuration file")
+	version    string             = "unknown version"
 )
 
 func init() {
@@ -44,10 +46,11 @@ func init() {
 
 // Config is the service configuration values set
 type Config struct {
-	API   api.Config
-	DB    database.Config
-	Cache cache.Config
-	MDES  mdes.Config
+	API    api.Config
+	DB     database.Config
+	Cache  cache.Config
+	MDES   mdes.Config
+	CfgAPI configapi.Config
 	//VISA - section for future VISA configuration values
 }
 
@@ -81,6 +84,8 @@ func doMain(config *Config) {
 	// Start API handler
 	h := api.NewAPI(&config.API, handler{})
 
+	// Start Configuration API handler
+	cfg := configapi.NewConfigAPI(&config.CfgAPI, cfghandler{})
 	// register CTRL-C signal chanel
 	exit := make(chan os.Signal, 1)
 	signal.Notify(exit, os.Interrupt)
@@ -92,6 +97,7 @@ func doMain(config *Config) {
 	collect, report := tools.ErrorCollector("clearence error(s): %v")
 	collect(m.ShutDown())
 	collect(h.ShutDown())
+	collect(cfg.ShutDown())
 	if err = report(); err != nil {
 		panic(err)
 	}
@@ -306,5 +312,20 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 	//      return (leaving notification record in database it will be hanled by scaner)
 	// delete notification record from db^ delete("notify"+prefix+t.TokenUniqueReference+timeStamp)
 	return
+
+}
+
+type cfghandler struct{}
+
+func (c cfghandler) SetOutSystem(oSys, cburl string) error {
+	return db.StoreOutSysInfo(oSys, &database.OutSysInfo{CBURL: cburl})
+}
+func (c cfghandler) SetTRSecrets(trid, apikey string, signkey, decryptkey *rsa.PrivateKey, encryptkey *rsa.PublicKey) error {
+	return db.StoreTRSecrets(trid, &database.TRSecrets{
+		APIKey:     apikey,
+		SingKey:    signkey,
+		DecryptKey: decryptkey,
+		EncryptKey: encryptkey,
+	})
 
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -100,12 +99,6 @@ func NewAPI(conf *Config, handler PGAPI) *Handler {
 // curl -v -H "Content-Type: application/json" -d '{"requestorid":"123454","carddata":{"type":"MC","accountNumber":"5123456789012345","expiryMonth":"09","expiryYear":"21","securityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}' http://localhost:8080/api/v1/tokenize
 
 func (h Handler) tokenizeHandler(w http.ResponseWriter, req *http.Request) {
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
 	reqData := struct {
 		OutSystem   string
 		RequestorID string
@@ -117,8 +110,8 @@ func (h Handler) tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		Source string
 	}{}
-	if err = json.Unmarshal(body, &reqData); err != nil {
-		// TO DO: provide more error details
+
+	if err := tools.ReadBodyToStruct(req.Body, &reqData); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -152,18 +145,13 @@ func (h Handler) tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 // curl -v -H "Content-Type: application/json" -d '{"tokenUniqueReference":"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","cryptogramType":"UCAF"}' http://localhost:8080/api/v1/transact
 
 func (h Handler) transactHandler(w http.ResponseWriter, req *http.Request) {
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+
 	reqData := struct {
 		Type                 string
 		TokenUniqueReference string
 	}{}
-	if err = json.Unmarshal(body, &reqData); err != nil {
-		// TO DO: provide more error details
+
+	if err := tools.ReadBodyToStruct(req.Body, &reqData); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -191,20 +179,14 @@ func (h Handler) transactHandler(w http.ResponseWriter, req *http.Request) {
 // delete handler for API calls
 func (h Handler) deleteHandler(w http.ResponseWriter, req *http.Request) {
 
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		// TO DO: provide more error details
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
 	reqData := struct {
 		Type                  string
 		TokenUniqueReferences []string
 		CausedBy              string
 		ReasonCode            string
 	}{}
-	if err = json.Unmarshal(body, &reqData); err != nil {
-		// TO DO: provide more error details
+
+	if err := tools.ReadBodyToStruct(req.Body, &reqData); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}

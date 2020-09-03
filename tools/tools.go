@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 )
@@ -94,4 +95,13 @@ func Updater() (func(*string, string), *bool) {
 	}
 	//report := func() bool { return updated }
 	return update, &updated
+}
+
+// ReadBodyToStruct reads request body into interface{}
+func ReadBodyToStruct(body io.ReadCloser, i interface{}) error {
+	data, err := ioutil.ReadAll(body)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, i)
 }
