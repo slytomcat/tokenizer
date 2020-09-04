@@ -2,7 +2,7 @@ CREATE DATABASE `tokenizer`;
 
 CREATE USER 'tokenizer'@'%' IDENTIFIED BY RANDOM PASSWORD;
 
-GRANT ALL PRIVILEGES ON `tokenizer`.* TO `tokenizer`@`%`;
+GRANT SELECT, INSERT, UPDATE ON `tokenizer`.* TO `tokenizer`@`%`;
 
 USE `tokenizer`;
 
