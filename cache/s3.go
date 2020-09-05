@@ -108,3 +108,12 @@ func (c Cache) Get(path string) ([]byte, error) {
 func (c Cache) GetURL(assetID string) string {
 	return fmt.Sprintf("http://%s/%s%s", c.bucket, c.path, assetID)
 }
+
+// Check - checks the s3 connection
+func (c Cache) Check() error {
+	// TO DO: decide what to call to check connection with s3 without any knowledge about objects
+	//_, err := c.svc.GetBucketNotification
+	//	GetBucketLocation(&s3.GetBucketLocationInput{Bucket: &c.bucket})
+	var err error
+	return err
+}

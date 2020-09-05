@@ -41,6 +41,13 @@ func (testAPIhandler) Transact(typ, tur string) (string, string, string, error) 
 	log.Printf("Transact: typ: %s, TUR: %s", typ, tur)
 	return "dpan", "exp", "crypto", nil
 }
+func (testAPIhandler) HealthCheck() error {
+	return nil
+}
+
+var (
+	testurl string
+)
 
 func TestMain(m *testing.M) {
 	log.SetFlags(log.Lmicroseconds)
@@ -51,6 +58,8 @@ func TestMain(m *testing.M) {
 
 	tools.ReadJSON("../config.json", &configData)
 
+	testurl = "http://" + configData.API.HostPort
+
 	handler := NewAPI(&configData.API, testAPIhandler{})
 
 	time.Sleep(time.Millisecond * 500)
@@ -58,15 +67,12 @@ func TestMain(m *testing.M) {
 	tErr := m.Run()
 
 	// Clearance
-	err := handler.ShutDown()
-	if err != nil {
-		panic(err)
-	}
+	tools.PanicIf(handler.ShutDown())
 
 	os.Exit(tErr)
 }
 
-func requst(url string, payload []byte) ([]byte, error) {
+func requst(url string, payload []byte) (int, []byte, error) {
 	request, _ := http.NewRequest("POST", url, bytes.NewReader(payload))
 	request.Header.Add("Content-Type", "application/json")
 	request.Header.Add("Accept", "application/json")
@@ -76,45 +82,64 @@ func requst(url string, payload []byte) ([]byte, error) {
 
 	responce, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("request forwarding error: %w", err)
+		return 0, nil, fmt.Errorf("request forwarding error: %w", err)
 	}
 	defer responce.Body.Close()
 
 	body, err := ioutil.ReadAll(responce.Body)
 	if err != nil {
-		return nil, fmt.Errorf("responce body reading error: %w", err)
+		return responce.StatusCode, nil, fmt.Errorf("responce body reading error: %w", err)
 	}
 
 	log.Printf("    <<<<<<<    Response: %s\n%s\n", responce.Status, body)
 
-	return body, nil
+	return responce.StatusCode, body, nil
 }
 
 func TestTokenize(t *testing.T) {
-	_, err := requst("http://localhost:8080/api/v1/tokenize",
+	c, _, err := requst(testurl+"/api/v1/tokenize",
 		[]byte(`{"outsystem":"A5","requestorid":"123454","carddata":{"accountNumber":"5123456789012345","expiry":"0921","SecurityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if c != http.StatusOK {
+		t.Fatalf("Wrong responce code: %v", c)
 	}
 	time.Sleep(time.Second * 2)
 	log.Println("Waiting for storage of assests finished")
 }
 
 func TestTransact(t *testing.T) {
-	_, err := requst("http://localhost:8080/api/v1/transact",
+	c, _, err := requst(testurl+"/api/v1/transact",
 		[]byte(`{"tokenUniqueReference":"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","cryptogramType":"UCAF"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if c != http.StatusOK {
+		t.Fatalf("Wrong responce code: %v", c)
+	}
 }
 
 func TestDelete(t *testing.T) {
-	_, err := requst("http://localhost:8080/api/v1/delete",
+	c, _, err := requst(testurl+"/api/v1/delete",
 		[]byte(`{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if c != http.StatusOK {
+		t.Fatalf("Wrong responce code: %v", c)
+	}
+}
+
+func TestHealthCheck(t *testing.T) {
+	c, _, err := requst(testurl+"/api/v1/healthcheck", []byte{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c != http.StatusOK {
+		t.Fatalf("Wrong responce code: %v", c)
 	}
 }

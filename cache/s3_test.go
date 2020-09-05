@@ -74,4 +74,8 @@ func TestCache(t *testing.T) {
 		t.Fatal("Downloaded payload not equal to written one")
 	}
 
+	if err := c.Check(); err != nil {
+		t.Fatalf("Errors: %v", err)
+	}
+
 }

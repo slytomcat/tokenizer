@@ -26,11 +26,12 @@ func NewDB(conf *Config) (Connector, error) {
 		Addrs:    conf.Addrs,
 		Password: conf.Password,
 	})
+	DB := &DBConnect{db}
 	// try to ping database
-	if _, err := db.Ping().Result(); err != nil {
+	if err := DB.Check(); err != nil {
 		return nil, err
 	}
-	return &DBConnect{db}, nil
+	return DB, nil
 }
 
 // set sets the value for the key with the ttl
@@ -94,4 +95,9 @@ func (db *DBConnect) StoreAsset(assetID string, asset *Asset) error {
 func (db *DBConnect) GetAsset(assetID string) (*Asset, error) {
 	data := Asset{}
 	return &data, db.get(assetID, &data)
+}
+
+// Check pings the server to check the connection
+func (db *DBConnect) Check() error {
+	return db.r.Ping().Err()
 }

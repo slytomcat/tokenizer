@@ -266,6 +266,18 @@ func (h handler) Transact(typ, tur string) (string, string, string, error) {
 	}
 }
 
+// HealthCheck - health check request handler
+// It checks adapters connections (when it is possible)
+func HealthCheck() error {
+	collect, report := tools.ErrorCollector("error(s) during checks: %+v")
+	collect(db.Check())
+	collect(c.Check())
+	// collect(api.Check())
+	// collect(m.Check())
+
+	return report()
+}
+
 // MDES call-back notification forward
 func mdesNotifyForfard(t mdes.NotificationTokenData) {
 

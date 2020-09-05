@@ -30,6 +30,7 @@ type PGAPI interface {
 	Tokenize(string, string, string, string, string, string, string) (string, string, error)
 	Delete(string, []string, string, string) ([]TokenStatus, error)
 	Transact(string, string) (string, string, string, error)
+	HealthCheck() error
 }
 
 // Handler - API handler
@@ -47,6 +48,8 @@ func (h Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		h.deleteHandler(resp, req)
 	case "POST/api/v1/transact":
 		h.transactHandler(resp, req)
+	case "POST/api/v1/healthcheck":
+		h.healthCheck(resp, req)
 	default:
 		resp.WriteHeader(http.StatusBadRequest)
 	}
@@ -193,7 +196,7 @@ func (h Handler) deleteHandler(w http.ResponseWriter, req *http.Request) {
 
 	statuses, err := h.apiHandler.Delete(reqData.Type, reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
 	if err != nil {
-		// TO DO: provide more error details
+		// TO DO: log more error details
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -201,4 +204,12 @@ func (h Handler) deleteHandler(w http.ResponseWriter, req *http.Request) {
 	resp, _ := json.Marshal(statuses)
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(resp)
+}
+
+func (h Handler) healthCheck(w http.ResponseWriter, req *http.Request) {
+	if err := h.apiHandler.HealthCheck(); err != nil {
+		log.Printf("ERROR: health check failed with error: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
 }

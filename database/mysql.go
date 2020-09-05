@@ -29,14 +29,13 @@ func NewDBs(conf *ConfigS) (Connector, error) {
 	// set the connection pool size
 	db.SetMaxOpenConns(conf.MaxOpenConns)
 
+	DB := &Db{db}
 	// Check the connection
-	if err = db.Ping(); err != nil {
+	if err = DB.Check(); err != nil {
 		return nil, err
 	}
 
-	// _, err = db.Exec("insert into osystem values('A5', 'https://paysecure.ru/tokenizer/callbackURL')")
-
-	return &Db{db}, nil
+	return DB, nil
 }
 
 func errorHandler(key string, err error) error {
@@ -46,12 +45,18 @@ func errorHandler(key string, err error) error {
 	return err
 }
 
+// Check pings database to check the connection
+func (d *Db) Check() error {
+	return d.db.Ping()
+}
+
 // StoreTokenInfo - stores token info
 func (d *Db) StoreTokenInfo(tur string, ti *TokenData) error {
 	_, err := d.db.Exec(
 		`INSERT INTO token(tur, osys, trid, status, statustimestamp, last4, assetURL) VALUES(?,?,?,?,?,?,?)
 		ON DUPLICATE KEY UPDATE
-			osys=VALUES(osys), trid=VALUES(trid), status=VALUES(status), statustimestamp=VALUES(statustimestamp), last4=VALUES(last4), assetURL=VALUES(assetURL)`,
+			osys=VALUES(osys), trid=VALUES(trid), status=VALUES(status), statustimestamp=VALUES(statustimestamp),
+			last4=VALUES(last4), assetURL=VALUES(assetURL)`,
 		tur, ti.OutSystem, ti.RequestorID, ti.Status, ti.StatusTimestamp, ti.Last4, ti.AssetURL)
 
 	return err
@@ -74,10 +79,8 @@ func (d *Db) GetTokenInfo(tur string) (*TokenData, error) {
 // StoreAsset - stores asset info
 func (d *Db) StoreAsset(id string, asset *Asset) error {
 	_, err := d.db.Exec(
-		`INSERT INTO asset(id, url)
-			VALUES(?, ?)
-		ON DUPLICATE KEY UPDATE
-		    url=VALUES(url)`,
+		`INSERT INTO asset(id, url) VALUES(?, ?)
+		ON DUPLICATE KEY UPDATE url=VALUES(url)`,
 		id, asset.PicURL)
 
 	return err

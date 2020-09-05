@@ -48,4 +48,5 @@ type Connector interface {
 	GetTRSecrets(trid string) (*TRSecrets, error)
 	StoreAsset(assetID string, asset *Asset) error
 	GetAsset(assetID string) (*Asset, error)
+	Check() error
 }
