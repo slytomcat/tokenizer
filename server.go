@@ -47,7 +47,7 @@ func init() {
 // Config is the service configuration values set
 type Config struct {
 	API    api.Config
-	DB     database.ConfigS
+	DB     database.Config
 	Cache  cache.Config
 	MDES   mdes.Config
 	CfgAPI configapi.Config
@@ -71,7 +71,7 @@ func main() {
 func doMain(config *Config) {
 	var err error
 	// connect to databse
-	db, err = database.NewDBs(&config.DB)
+	db, err = database.NewDB(&config.DB)
 	tools.PanicIf(err)
 
 	// create MasterCard MDES protocol adapter instance
