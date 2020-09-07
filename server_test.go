@@ -57,7 +57,8 @@ func TestMain(m *testing.M) {
 }
 
 func request(url string, payload []byte) ([]byte, error) {
-	req, _ := http.NewRequest("POST", url, bytes.NewReader(payload))
+	req, err := http.NewRequest("POST", url, bytes.NewReader(payload))
+	tools.PanicIf(err)
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
 
@@ -146,6 +147,13 @@ func TestConfigTRSecrets(t *testing.T) {
 	// wait for cache updates
 	time.Sleep(time.Second)
 	log.Println("Done waiting async storage")
+}
+
+func TestHealthCheck(t *testing.T) {
+	_, err := request(apiURL+"/api/v1/healthcheck", []byte{})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestServerKill(t *testing.T) {
