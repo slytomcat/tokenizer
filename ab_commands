@@ -1,0 +1,6 @@
+# tokenize
+ab -T application/json -p post-tokenize -c 200 -n 1000 "http://localhost:8080/api/v1/tokenize"
+
+# transact
+ab -T application/json -p post-transact -c 200 -n 1000 "http://localhost:8080/api/v1/transact"
+

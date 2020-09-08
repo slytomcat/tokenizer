@@ -3,7 +3,7 @@ package main
 // Manual tests via curl:
 
 // TestTokenize
-// curl -v -H "Content-Type: application/json" -d '{"requestorid":"123454","carddata":{"accountNumber":"5123456789012345","expiryMonth":"09","expiryYear":"21","securityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}' http://localhost:8080/api/v1/tokenize
+// curl -v -H "Content-Type: application/json" -d '{"outsystem":"A5","requestorid":"123454","carddata":{"type":"MC","accountNumber":"5123456789012345","expiry":"0921","securityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}' http://localhost:8080/api/v1/tokenize
 
 // TestTransact
 // curl -v -H "Content-Type: application/json" -d '{"tokenUniqueReference":"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","cryptogramType":"UCAF"}' http://localhost:8080/api/v1/transact
