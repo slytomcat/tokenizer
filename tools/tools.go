@@ -6,11 +6,16 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"regexp"
 )
 
 // DEBUG is the flag that allove to output debugging information. It should be disabled in PROD environment
-var DEBUG = debug == "y"
-var debug = "y" // cange it via ldflags to disable debugging in PROD (see ../build_prod.bash)
+var (
+	DEBUG = debug == "y"
+	debug = "y" // cange it via ldflags to disable debugging in PROD (see ../build_prod.bash)
+
+	envRe, _ = regexp.Compile(`"$([^"]+)[,}]`)
+)
 
 // ReadFile returns []byte buffer with file contet
 func ReadFile(path string) ([]byte, error) {
@@ -76,10 +81,6 @@ func GetConfig(path, env string, conf interface{}) error {
 
 	return nil
 }
-
-// func parseEnv(o *inderface) {
-// 	os, ok := o(struct) 
-// }
 
 // PanicIf panics if provided error is not nil
 func PanicIf(err error) {

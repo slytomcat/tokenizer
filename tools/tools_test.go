@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -175,4 +176,48 @@ func TestPanicIfYES(t *testing.T) {
 		}
 	}()
 	PanicIf(errors.New("test error"))
+}
+
+func TestBodyReader(t *testing.T) {
+	data := `{"key":"val"}`
+	dStruct := struct {
+		Key string
+	}{}
+
+	err := ReadBodyToStruct(ioutil.NopCloser(bytes.NewReader([]byte(data))), &dStruct)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if dStruct.Key != "val" {
+		t.Fatal("wrong value")
+	}
+
+	data = `{"wrong":"JSON"`
+
+	err = ReadBodyToStruct(ioutil.NopCloser(bytes.NewReader([]byte(data))), &dStruct)
+
+	if err == nil {
+		t.Fatal("no erroro when expected")
+	}
+
+	t.Logf("receiver expected error: %v", err)
+
+	err = ReadBodyToStruct(wr{}, &dStruct)
+
+	if err == nil {
+		t.Fatal("no erroro when expected")
+	}
+
+	t.Logf("receiver expected error: %v", err)
+
+}
+
+type wr struct{}
+
+func (wr) Close() error { return nil }
+
+func (wr) Read([]byte) (int, error) {
+	return 0, errors.New("expected error")
 }
