@@ -286,10 +286,10 @@ func (h handler) Transact(typ, tur string) (string, string, string, error) {
 func (h handler) HealthCheck() error {
 	collect, report := tools.ErrorCollector("error(s) during checks: %+v")
 	collect(db.Check())
-	collect(c.Check())
+	collect(c.Check()) // what to check?
 	collect(q.Check())
-	// collect(api.Check())
-	// collect(m.Check())
+	// collect(api.Check()) // call-back?
+	// collect(m.Check()) // fake request?
 
 	return report()
 }
