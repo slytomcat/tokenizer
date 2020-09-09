@@ -77,6 +77,10 @@ func GetConfig(path, env string, conf interface{}) error {
 	return nil
 }
 
+// func parseEnv(o *inderface) {
+// 	os, ok := o(struct) 
+// }
+
 // PanicIf panics if provided error is not nil
 func PanicIf(err error) {
 	if err != nil {

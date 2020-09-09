@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/slytomcat/tokenizer/queue"
+
 	"github.com/slytomcat/tokenizer/configapi"
 
 	"github.com/slytomcat/tokenizer/api"
@@ -32,6 +34,7 @@ var (
 	m          *mdes.MDESapi      // MDES API adapter
 	db         database.Connector // database adapter
 	c          *cache.Cache       // cache adaptor
+	q          *queue.Queue       // queue adapter
 	configFile                    = flag.String("config", "./config.json", "`path` to the configuration file")
 	version    string             = "unknown version"
 )
@@ -49,6 +52,7 @@ type Config struct {
 	API    api.Config
 	DB     database.Config
 	Cache  cache.Config
+	QUEUE  queue.Config
 	MDES   mdes.Config
 	CfgAPI configapi.Config
 	//VISA - section for future VISA configuration values
@@ -72,6 +76,10 @@ func doMain(config *Config) {
 	var err error
 	// connect to databse
 	db, err = database.NewDB(&config.DB)
+	tools.PanicIf(err)
+
+	// connect to queue
+	q, err = queue.NewQueue(&config.QUEUE)
 	tools.PanicIf(err)
 
 	// create MasterCard MDES protocol adapter instance
@@ -272,6 +280,7 @@ func (h handler) HealthCheck() error {
 	collect, report := tools.ErrorCollector("error(s) during checks: %+v")
 	collect(db.Check())
 	collect(c.Check())
+	collect(q.Check())
 	// collect(api.Check())
 	// collect(m.Check())
 

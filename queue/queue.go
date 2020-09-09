@@ -3,34 +3,96 @@
 
 package queue
 
+import (
+	"errors"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sqs"
+)
+
 // Config - SQS connection
 type Config struct {
-	// SQS connection
+	Region     string
+	AccesKeyID string
+	SecretKey  string
+	Endpoint   string
+	QueueName  string
 }
 
 // Queue - queue connection structure
 type Queue struct {
-	// something
+	q         *sqs.SQS
+	queueName string
+	queueURL  string
 }
 
 // NewQueue returns new SQS connection
-func NewQueue(cnf *Config) (*Queue, error) {
-	// make and check SQS connection here
-	return &Queue{}, nil
+func NewQueue(conf *Config) (*Queue, error) {
+	mySession := session.Must(session.NewSession())
+	q := sqs.New(mySession,
+		&aws.Config{
+			Region:      aws.String(conf.Region),
+			Credentials: credentials.NewStaticCredentials(conf.AccesKeyID, conf.SecretKey, ""),
+			Endpoint:    aws.String(conf.Endpoint),
+			DisableSSL:  aws.Bool(true),
+		})
+	// get queue url if queue exists
+	res, err := q.GetQueueUrl(&sqs.GetQueueUrlInput{QueueName: aws.String(conf.QueueName)})
+	if err != nil {
+		// try to create new queue
+		res, err := q.CreateQueue(&sqs.CreateQueueInput{
+			QueueName: aws.String(conf.QueueName),
+			Attributes: map[string]*string{
+				"MessageRetentionPeriod": aws.String("345600"), // keep messages for 4 days
+				"VisibilityTimeout":      aws.String("30"),
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &Queue{q, conf.QueueName, *res.QueueUrl}, nil
+	}
+	return &Queue{q, conf.QueueName, *res.QueueUrl}, nil
 }
 
-// Put puts the data to queue
-func (q *Queue) Put(data []byte) error {
-	// return q.put()
-	return nil
+// Send puts the data to queue
+func (q *Queue) Send(data string) error {
+	_, err := q.q.SendMessage(&sqs.SendMessageInput{
+		QueueUrl:    aws.String(q.queueURL),
+		MessageBody: aws.String(data),
+	})
+	return err
 }
 
-// Subscribe subscribe for receiving new data from queue
-func (q *Queue) Subscribe() (chan []byte, error) {
-	return make(chan []byte, 2), nil
+// Receive receives 1 message from queue, It returns message body, receipt handle ID, and error
+func (q *Queue) Receive() (string, string, error) {
+	res, err := q.q.ReceiveMessage(&sqs.ReceiveMessageInput{
+		QueueUrl:            aws.String(q.queueURL),
+		MaxNumberOfMessages: aws.Int64(1),
+	})
+	if err != nil {
+		return "", "", err
+	}
+	if len(res.Messages) != 1 {
+		return "", "", errors.New("wrong number of messages received")
+	}
+	return *res.Messages[0].Body, *res.Messages[0].ReceiptHandle, nil
 }
 
-// ReportDone ACK responce to queue ??? what is the identifier of the queue item?
-func (q *Queue) ReportDone() error {
-	return nil
+// Delete is ACK responce to queue
+func (q *Queue) Delete(receiptHandle string) error {
+	_, err := q.q.DeleteMessage(&sqs.DeleteMessageInput{
+		QueueUrl:      aws.String(q.queueURL),
+		ReceiptHandle: aws.String(receiptHandle),
+	})
+	return err
+}
+
+// Check - checks the queue connection and existance
+func (q *Queue) Check() error {
+	_, err := q.q.GetQueueUrl(&sqs.GetQueueUrlInput{QueueName: aws.String(q.queueName)})
+
+	return err
 }
