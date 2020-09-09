@@ -23,7 +23,6 @@ type Config struct {
 // New starts call-back handler goroutine that handles q queue with inteval in seconds
 func New(q *queue.Queue, interval int) chan bool {
 	log.Println("Starting Call-Back handler")
-	defer log.Println("Call-Back handler stopped")
 	// register CTRL-C signal chanel
 	exit := make(chan os.Signal, 1)
 	signal.Notify(exit, os.Interrupt)
@@ -32,6 +31,7 @@ func New(q *queue.Queue, interval int) chan bool {
 	// make quit request chanel
 	quit := make(chan bool, 1)
 	go func() {
+		defer log.Println("Call-Back handler stopped")
 		for {
 			select {
 			case <-exit:

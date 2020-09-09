@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -16,8 +15,6 @@ func TestNew(t *testing.T) {
 	tools.PanicIf(err)
 	q, err := NewQueue(&conf.QUEUE)
 	tools.PanicIf(err)
-	// replace host in QueueURL
-	q.queueURL = strings.Replace(q.queueURL, "localhost", "s-t-c.tk", 1)
 
 	tdata1 := "test data 1"
 	tdata2 := "test data 2"
