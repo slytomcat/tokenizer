@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/sqs"
+
 	"github.com/slytomcat/tokenizer/tools"
 )
 
@@ -13,7 +16,7 @@ func TestNew(t *testing.T) {
 	tools.PanicIf(err)
 	q, err := NewQueue(&conf.QUEUE)
 	tools.PanicIf(err)
-	// replace host in QueueURL 
+	// replace host in QueueURL
 	q.queueURL = strings.Replace(q.queueURL, "localhost", "s-t-c.tk", 1)
 
 	tdata1 := "test data 1"
@@ -33,5 +36,10 @@ func TestNew(t *testing.T) {
 	t.Log(data)
 
 	q.Delete(receipt)
+
+	req, _ := q.q.PurgeQueueRequest(&sqs.PurgeQueueInput{
+		QueueUrl: aws.String(q.queueURL),
+	})
+	req.Send()
 
 }

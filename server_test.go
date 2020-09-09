@@ -121,7 +121,7 @@ func TestNotifyMC(t *testing.T) {
 		t.Fatal(err)
 	}
 	// wait for cache updates
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 5)
 	log.Println("Done waiting async storage")
 }
 

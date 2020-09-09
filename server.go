@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rsa"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/slytomcat/tokenizer/cbhandler"
 	"github.com/slytomcat/tokenizer/queue"
 
 	"github.com/slytomcat/tokenizer/configapi"
@@ -55,6 +57,7 @@ type Config struct {
 	QUEUE  queue.Config
 	MDES   mdes.Config
 	CfgAPI configapi.Config
+	CBH    cbhandler.Config
 	//VISA - section for future VISA configuration values
 }
 
@@ -92,6 +95,9 @@ func doMain(config *Config) {
 	// Start API handler
 	h := api.NewAPI(&config.API, handler{})
 
+	// Start call-back handler
+	cbExit := cbhandler.New(q, config.CBH.PollingInterval)
+
 	// Start Configuration API handler
 	cfg := configapi.NewConfigAPI(&config.CfgAPI, cfghandler{})
 	// register CTRL-C signal chanel
@@ -102,6 +108,7 @@ func doMain(config *Config) {
 	<-exit
 
 	// Clearense
+	cbExit <- true
 	collect, report := tools.ErrorCollector("clearence error(s): %v")
 	collect(m.ShutDown())
 	collect(h.ShutDown())
@@ -327,12 +334,20 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 
 	log.Printf("INFO: notification for outSytem: %s by cb URL: %s\nToken: %s TokenData: %+v", tData.OutSystem, osysData.CBURL, t.TokenUniqueReference, tData)
 
-	// TO DO:
-	// Put formated notification and URL into SQS
-	// and ...
-	// forget the rest!
-	return
+	payload, _ := json.Marshal(tData)
 
+	data, _ := json.Marshal(struct {
+		URL    string
+		Paylod string
+	}{
+		URL:    osysData.CBURL,
+		Paylod: string(payload),
+	})
+
+	err = q.Send(string(data))
+	if err != nil {
+		log.Printf("sending message to call-back queue error: %v", err)
+	}
 }
 
 type cfghandler struct{}

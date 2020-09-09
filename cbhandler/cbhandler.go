@@ -1,7 +1,7 @@
 // This is the queue handler that sends the call-backs from queue to the receiver
 // WIP: It is just skeleton of code now
 
-package main
+package cbhandler
 
 import (
 	"bytes"
@@ -10,57 +10,75 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/slytomcat/tokenizer/queue"
-	"github.com/slytomcat/tokenizer/tools"
 )
 
-func main() {
-	cfg := struct {
-		Q queue.Config
-	}{}
+// Config is call-back handler configuration
+type Config struct {
+	PollingInterval int
+}
 
-	tools.PanicIf(tools.GetConfig("config.json", "CBHANDLER_CONFIG", &cfg))
-
-	q, err := queue.NewQueue(&cfg.Q)
-	tools.PanicIf(err)
-
-	ch, err := q.Subscribe()
-	tools.PanicIf(err)
-
+// New starts call-back handler goroutine that handles q queue with inteval in seconds
+func New(q *queue.Queue, interval int) chan bool {
+	log.Println("Starting Call-Back handler")
+	defer log.Println("Call-Back handler stopped")
 	// register CTRL-C signal chanel
 	exit := make(chan os.Signal, 1)
 	signal.Notify(exit, os.Interrupt)
+	// make ticker
+	tick := time.NewTicker(time.Second * time.Duration(interval))
+	// make quit request chanel
+	quit := make(chan bool, 1)
+	go func() {
+		for {
+			select {
+			case <-exit:
+				return
+			case <-quit:
+				return
+			case <-tick.C:
+				for {
+					data, receipt, err := q.Receive()
+					if err != nil {
+						break
+					}
+					go func(d, r string) {
+						cbData := struct {
+							URL     string
+							Payload []byte
+						}{}
 
-	for {
-		select {
-		case <-exit:
-			// q.Disconnect
-			return
-		case data := <-ch:
-			cbData := struct {
-				URL     string
-				Payload []byte
-			}{}
-			if err := json.Unmarshal(data, &cbData); err != nil {
-				log.Printf("ERROR: can't unmarshal data from queue: %v", err)
-				continue
-			}
+						if err := json.Unmarshal([]byte(d), &cbData); err != nil {
+							log.Printf("ERROR: call-back: can't unmarshal data (%s) from queue: %v", d, err)
 
-			req, _ := http.NewRequest("POST", cbData.URL, bytes.NewReader(cbData.Payload))
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				log.Printf("ERROR: can't send data to receiver: %v", err)
-				continue
-			}
-			if resp.StatusCode != http.StatusOK {
-				log.Printf("ERROR: receved unsuccess status code: %s", resp.Status)
-				continue
+							if err = q.Delete(r); err != nil {
+								log.Printf("ERROR: call-back: deleting message from queue error: %v", err)
+							}
+							return
+						}
+						req, _ := http.NewRequest("POST", cbData.URL, bytes.NewReader(cbData.Payload))
+						resp, err := http.DefaultClient.Do(req)
+						if err != nil {
+							log.Printf("ERROR: call-back: can't send data to: %s error: %v", cbData.URL, err)
+							return
+						}
+						if resp.StatusCode != http.StatusOK {
+							log.Printf("ERROR: call-back: receved unsuccess status code: %s while sending data to %s", resp.Status, cbData.URL)
+							return
+						}
+						log.Printf("INFO: call-back: successfully send call-back to: %s with: %+v", cbData.URL, cbData.Payload)
 
+						// when callback was succesfully sent try to delete message from queue
+						if err = q.Delete(r); err != nil {
+							log.Printf("ERROR: call-back: deleting message from queue error: %v", err)
+						}
+
+					}(data, receipt)
+				}
 			}
-			q.ReportDone()
 		}
-
-	}
-
+	}()
+	return quit
 }
