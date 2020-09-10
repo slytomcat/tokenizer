@@ -11,7 +11,7 @@ import (
 
 func TestNew(t *testing.T) {
 	conf := struct{ QUEUE Config }{}
-	err := tools.GetConfig("../config.json", "", &conf)
+	err := tools.ReadJSON("../config.json", &conf)
 	if err != nil {
 		t.Fatal(err)
 	}
