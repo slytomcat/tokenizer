@@ -15,7 +15,7 @@ func initDB() {
 		cfg := struct {
 			DB ConfigS
 		}{}
-		tools.PanicIf(tools.GetConfig("../config.json", "TOKENIZER_CONF", &cfg))
+		tools.PanicIf(tools.ReadJSON("../config.json", &cfg))
 
 		var err error
 		db, err = NewDBs(&cfg.DB)

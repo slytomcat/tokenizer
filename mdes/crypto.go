@@ -13,8 +13,8 @@ import (
 	"io"
 
 	oauth "github.com/mastercard/oauth1-signer-go"
-	"github.com/mastercard/oauth1-signer-go/utils"
 	tools "github.com/slytomcat/tokenizer/tools"
+	"golang.org/x/crypto/pkcs12"
 )
 
 // getRandom returns the specified number of random bytes or error
@@ -122,7 +122,7 @@ func (m *MDESapi) initKeys(conf *Config) error {
 
 	// load signing key
 	// TO DO get password from secure storage
-	signingKey, err := utils.LoadSigningKey(conf.SignKey, "keyst0repassw0rd")
+	signingKey, err := loadPivateKey(conf.SignKey, "keyst0repassw0rd")
 	if err != nil {
 		return err
 	}
@@ -133,7 +133,7 @@ func (m *MDESapi) initKeys(conf *Config) error {
 	m.storedDecryptKeys = map[string]*rsa.PrivateKey{}
 	for _, keyData := range conf.DecryptKeys {
 		// TO DO get password from secure storage
-		decryptKey, err := utils.LoadSigningKey(keyData.Key, "keystorepassword")
+		decryptKey, err := loadPivateKey(keyData.Key, "keystorepassword")
 		if err != nil {
 			return err
 		}
@@ -141,7 +141,7 @@ func (m *MDESapi) initKeys(conf *Config) error {
 	}
 
 	// load encryption public key
-	encryptKeyData, err := tools.ReadFile(conf.EcryptKey)
+	encryptKeyData, err := tools.ReadPath(conf.EcryptKey)
 	if err != nil {
 		return err
 	}
@@ -158,4 +158,21 @@ func (m *MDESapi) initKeys(conf *Config) error {
 	// TO DO: load fingerprint from key storage
 	m.storedEncryptKeyFP = conf.EncrypKeyFp
 	return nil
+}
+
+func loadPivateKey(path, password string) (*rsa.PrivateKey, error) {
+
+	// read the file content
+	privateKeyData, err := tools.ReadPath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// decode file content to privateKey
+	privateKey, _, err := pkcs12.Decode(privateKeyData, password)
+	if err != nil {
+		return nil, err
+	}
+
+	return privateKey.(*rsa.PrivateKey), nil
 }

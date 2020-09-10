@@ -70,7 +70,7 @@ func main() {
 
 	// get configuration
 	config := Config{}
-	tools.PanicIf(tools.GetConfig(*configFile, "TOKENIZER_CONF", &config))
+	tools.PanicIf(tools.ReadJSON(*configFile, &config))
 
 	doMain(&config)
 }
@@ -340,8 +340,6 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 		URL:     osysData.CBURL,
 		Payload: string(payload),
 	})
-
-	log.Println(string(data))
 
 	err = q.Send(string(data))
 	if err != nil {

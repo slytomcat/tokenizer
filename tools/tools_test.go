@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -58,7 +59,7 @@ func ExampleDebug() {
 	// DEBUG: it is DEBUG message that should be shown
 }
 
-func TestGetConfig(t *testing.T) {
+func TestReadJSON(t *testing.T) {
 	type cnf struct {
 		SVal string
 		NVal int
@@ -71,19 +72,29 @@ func TestGetConfig(t *testing.T) {
 	c0b, _ := json.Marshal(c0)
 
 	env := "TEST_ENV_TEST_TEST"
-	os.Setenv(env, string(c0b))
+	os.Setenv(env, base64.StdEncoding.EncodeToString(c0b))
 	defer os.Setenv(env, "")
 
 	c1 := cnf{}
 
-	err := GetConfig("/some/file/that/not/exists", env, &c1)
-
+	err := ReadJSON("$"+env, &c1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if c1.NVal != c0.NVal || c1.SVal != c0.SVal {
 		t.Fatalf("Stored and received data are not equal:\nstored: (%v)\nreceived: (%v)", c0, c1)
+	}
+
+	os.Setenv(env, string(c0b))
+	err = ReadJSON("$"+env, &c1)
+	if err == nil {
+		t.Fatal("no error when expected")
+	}
+
+	err = ReadJSON("non/existing/path", &c1)
+	if err == nil {
+		t.Fatal("no error when expected")
 	}
 
 	tmpfile, err := ioutil.TempFile("", "example")
@@ -103,7 +114,7 @@ func TestGetConfig(t *testing.T) {
 
 	c2 := cnf{}
 
-	err = GetConfig(tmpfile.Name(), "", &c2)
+	err = ReadJSON(tmpfile.Name(), &c2)
 
 	if err != nil {
 		t.Fatal(err)
@@ -130,7 +141,7 @@ func TestGetConfig(t *testing.T) {
 
 	c2 = cnf{}
 
-	err = GetConfig(tmpfile1.Name(), "", &c2)
+	err = ReadJSON(tmpfile1.Name(), &c2)
 
 	if err == nil {
 		t.Fatal("no error when expected")

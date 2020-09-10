@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 	log.SetFlags(log.Lmicroseconds)
 	// preparations
 	cnf := Config{}
-	err := tools.GetConfig("config.json", "TOKENIZER_CONF", &cnf)
+	err := tools.ReadJSON("config.json", &cnf)
 	cbURL = "http://" + cnf.MDES.CallBackHostPort + cnf.MDES.CallBackURI
 	apiURL = "http://" + cnf.API.HostPort
 	capiURL = "http://" + cnf.CfgAPI.HostPort

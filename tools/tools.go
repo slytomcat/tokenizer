@@ -1,12 +1,14 @@
 package tools
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"regexp"
+	"strings"
 )
 
 // DEBUG is the flag that allove to output debugging information. It should be disabled in PROD environment
@@ -17,8 +19,17 @@ var (
 	envRe, _ = regexp.Compile(`"$([^"]+)[,}]`)
 )
 
-// ReadFile returns []byte buffer with file contet
-func ReadFile(path string) ([]byte, error) {
+// ReadPath returns []byte buffer with file or environment variable content.
+// When path starts with "$" then the environment variable is read as base64(std) encoded data.
+// For conventional path (like "/some/dir/file") the file content is returned.
+func ReadPath(path string) ([]byte, error) {
+	if strings.HasPrefix(path, "$") {
+		data, err := base64.StdEncoding.DecodeString(os.Getenv(path[1:]))
+		if err != nil {
+			return nil, err
+		}
+		return data, nil
+	}
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -27,20 +38,25 @@ func ReadFile(path string) ([]byte, error) {
 	return ioutil.ReadAll(file)
 }
 
-// ReadJSON returns []byte buffer with file contet
+// ReadJSON reads the data from path and tries to unmarshal it into supplied structure.
+// See ReadFile description for details on reading data by path.
 func ReadJSON(path string, i interface{}) error {
-	file, err := ReadFile(path)
+	file, err := ReadPath(path)
 	if err != nil {
-		return fmt.Errorf("file opening/reading error; %w", err)
+		return fmt.Errorf("data receiving error; %w", err)
 	}
 	if err = json.Unmarshal(file, i); err != nil {
-		return fmt.Errorf("file content parsing error; %w", err)
+		return fmt.Errorf("data parsing error; %w", err)
 	}
 	return nil
 }
 
-// ErrorCollector - errors collector and reporter
-func ErrorCollector(name string) (func(error), func() error) {
+// ErrorCollector - errors collector and reporter.
+// It returns two function:
+// - func(error) : should be used to report errors. Errors equal to nil are ignored.
+// - func() error : to report about collected errors. It returns nil if no error were collected.
+// The format parameter is used to format the resulting error
+func ErrorCollector(format string) (func(error), func() error) {
 	var errs []error
 	collect := func(err error) {
 		if err != nil {
@@ -49,37 +65,19 @@ func ErrorCollector(name string) (func(error), func() error) {
 	}
 	report := func() error {
 		if len(errs) > 0 {
-			return fmt.Errorf(name, errs)
+			return fmt.Errorf(format, errs)
 		}
 		return nil
 	}
 	return collect, report
 }
 
-// Debug - logging debug info
+// Debug - logging of debug info
 func Debug(format string, args ...interface{}) {
 	if DEBUG {
 		fmt.Printf("DEBUG: "+format, args...)
 		fmt.Println()
 	}
-}
-
-// GetConfig try to get configuration from file or from environmrnt variable
-func GetConfig(path, env string, conf interface{}) error {
-
-	// try to read config file
-	err1 := ReadJSON(path, conf)
-
-	// try to read config from environment
-	err2 := json.Unmarshal([]byte(os.Getenv(env)), conf)
-
-	if err1 != nil && err2 != nil {
-		return fmt.Errorf("cofig was not read, errors: [%v,%v]", err1, err2)
-	}
-
-	Debug("INFO: service configuration: %+v", conf)
-
-	return nil
 }
 
 // PanicIf panics if provided error is not nil
