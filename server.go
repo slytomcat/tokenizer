@@ -336,13 +336,12 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 
 	payload, _ := json.Marshal(tData)
 
-	data, _ := json.Marshal(struct {
-		URL    string
-		Paylod string
-	}{
-		URL:    osysData.CBURL,
-		Paylod: string(payload),
+	data, _ := json.Marshal(queue.QData{
+		URL:     osysData.CBURL,
+		Payload: string(payload),
 	})
+
+	log.Println(string(data))
 
 	err = q.Send(string(data))
 	if err != nil {

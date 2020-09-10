@@ -127,7 +127,7 @@ func TestNotifyMC(t *testing.T) {
 
 func TestConfigOutSys(t *testing.T) {
 	_, err := request(capiURL+"/capi/v1/addoutsystem",
-		[]byte(`{"outsys":"A5","cburl":"https://paysecure.ru/tokenizer/callbackURL"}`),
+		[]byte(`{"outsys":"A5","cburl":"http://s-t-c.tk/echo"}`),
 	)
 	if err != nil {
 		t.Fatal(err)

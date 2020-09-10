@@ -45,10 +45,8 @@ func New(q *queue.Queue, interval int) chan bool {
 						break
 					}
 					go func(d, r string) {
-						cbData := struct {
-							URL     string
-							Payload []byte
-						}{}
+
+						cbData := queue.QData{}
 
 						if err := json.Unmarshal([]byte(d), &cbData); err != nil {
 							log.Printf("ERROR: call-back: can't unmarshal data (%s) from queue: %v", d, err)
@@ -58,7 +56,7 @@ func New(q *queue.Queue, interval int) chan bool {
 							}
 							return
 						}
-						req, _ := http.NewRequest("POST", cbData.URL, bytes.NewReader(cbData.Payload))
+						req, _ := http.NewRequest("POST", cbData.URL, bytes.NewReader([]byte(cbData.Payload)))
 						resp, err := http.DefaultClient.Do(req)
 						if err != nil {
 							log.Printf("ERROR: call-back: can't send data to: %s error: %v", cbData.URL, err)
@@ -68,7 +66,7 @@ func New(q *queue.Queue, interval int) chan bool {
 							log.Printf("ERROR: call-back: receved unsuccess status code: %s while sending data to %s", resp.Status, cbData.URL)
 							return
 						}
-						log.Printf("INFO: call-back: successfully send call-back to: %s with: %+v", cbData.URL, cbData.Payload)
+						log.Printf("INFO: call-back: successfully send call-back to: %s with: %s", cbData.URL, cbData.Payload)
 
 						// when callback was succesfully sent try to delete message from queue
 						if err = q.Delete(r); err != nil {

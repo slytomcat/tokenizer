@@ -28,6 +28,12 @@ type Queue struct {
 	queueURL  string
 }
 
+// QData - queue data structure
+type QData struct {
+	URL     string
+	Payload string
+}
+
 // NewQueue returns new SQS connection
 func NewQueue(conf *Config) (*Queue, error) {
 	mySession := session.Must(session.NewSession())
