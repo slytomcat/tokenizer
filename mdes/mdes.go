@@ -45,8 +45,10 @@ type Config struct {
 	TLSCert          string
 	TLSKey           string
 	SignKey          string
+	SignKeyPassw     string
 	EcryptKey        string
 	EncrypKeyFp      string
+	DecryptKeyPassw   string
 	DecryptKeys      []keywfp // to support multiple keys
 	APIKey           string
 }

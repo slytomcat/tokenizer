@@ -121,8 +121,11 @@ func (m MDESapi) encryptKey() (*rsa.PublicKey, string) {
 func (m *MDESapi) initKeys(conf *Config) error {
 
 	// load signing key
-	// TO DO get password from secure storage
-	signingKey, err := loadPivateKey(conf.SignKey, "keyst0repassw0rd")
+	passw, err := tools.ReadPath(conf.SignKeyPassw, false)
+	if err != nil {
+		return err
+	}
+	signingKey, err := loadPivateKey(conf.SignKey, string(passw))
 	if err != nil {
 		return err
 	}
@@ -131,9 +134,14 @@ func (m *MDESapi) initKeys(conf *Config) error {
 
 	// get and store multiple keys/fingerprints in map[fingerprint]key
 	m.storedDecryptKeys = map[string]*rsa.PrivateKey{}
+	passw, err = tools.ReadPath(conf.DecryptKeyPassw, false)
+	if err != nil {
+		return err
+	}
+
 	for _, keyData := range conf.DecryptKeys {
 		// TO DO get password from secure storage
-		decryptKey, err := loadPivateKey(keyData.Key, "keystorepassword")
+		decryptKey, err := loadPivateKey(keyData.Key, string(passw))
 		if err != nil {
 			return err
 		}

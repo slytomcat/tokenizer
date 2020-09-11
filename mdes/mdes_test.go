@@ -31,13 +31,11 @@ func TestMain(m *testing.M) {
 		log.Println(err)
 	}
 
-	err = json.Unmarshal([]byte(os.Getenv("TOKENIZER_CONF")), &configData)
-	if err != nil {
-		log.Println(err)
-	}
 	// change path of keys as we start from other folder
 	configData.MDES.EcryptKey = "SandBoxKeys/164401.crt"
+	configData.MDES.SignKeyPassw = "SandBoxKeys/password_sk"
 	configData.MDES.SignKey = "SandBoxKeys/SandBox.p12"
+	configData.MDES.DecryptKeyPassw = "SandBoxKeys/password_dk"
 	configData.MDES.DecryptKeys = []keywfp{
 		keywfp{Key: "SandBoxKeys/key.p12", Fingerprint: "982175aa53858f44de919c70b20e011681b9db0deec4f4c117da8ece86a4684e"},
 		keywfp{Key: "SandBoxKeys/key.p12", Fingerprint: "243e6992ea467f1cbb9973facfcc3bf17b5cd007"}, // for testing encryption a decryption
