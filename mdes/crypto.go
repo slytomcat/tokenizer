@@ -141,29 +141,36 @@ func (m *MDESapi) initKeys(conf *Config) error {
 	}
 
 	// load encryption public key
-	encryptKeyData, err := tools.ReadPath(conf.EcryptKey)
+	m.storedEncryptKey, err = loadPublicKey(conf.EcryptKey)
 	if err != nil {
 		return err
-	}
-	data, _ := pem.Decode(encryptKeyData)
-	cert, err := x509.ParseCertificate(data.Bytes)
-	if err != nil {
-		return err
-	}
-	ok := false
-	m.storedEncryptKey, ok = cert.PublicKey.(*rsa.PublicKey)
-	if !ok {
-		return errors.New("can't convert public key from certificate")
 	}
 	// TO DO: load fingerprint from key storage
 	m.storedEncryptKeyFP = conf.EncrypKeyFp
 	return nil
 }
 
+func loadPublicKey(path string) (*rsa.PublicKey, error) {
+	certData, err := tools.ReadPath(path, true)
+	if err != nil {
+		return nil, err
+	}
+	data, _ := pem.Decode(certData)
+	cert, err := x509.ParseCertificate(data.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	publicKey, ok := cert.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("can't convert public key from certificate")
+	}
+	return publicKey, nil
+}
+
 func loadPivateKey(path, password string) (*rsa.PrivateKey, error) {
 
 	// read the file content
-	privateKeyData, err := tools.ReadPath(path)
+	privateKeyData, err := tools.ReadPath(path, true)
 	if err != nil {
 		return nil, err
 	}

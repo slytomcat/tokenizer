@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"regexp"
 	"strings"
 )
 
@@ -16,20 +15,24 @@ var (
 	DEBUG = debug == "y"
 	debug = "y" // cange it via ldflags to disable debugging in PROD (see ../build_prod.bash)
 
-	envRe, _ = regexp.Compile(`"$([^"]+)[,}]`)
 )
 
 // ReadPath returns []byte buffer with file or environment variable content.
-// When path starts with "$" then the environment variable is read as base64(std) encoded data.
+// When path starts with "$" then the environment variable is read. If binary = true then environment variable interpreted as base64(std) encoded data.
 // For conventional path (like "/some/dir/file") the file content is returned.
-func ReadPath(path string) ([]byte, error) {
+func ReadPath(path string, binary bool) ([]byte, error) {
 	if strings.HasPrefix(path, "$") {
+		// get data from environment
+		if !binary {
+			return []byte(os.Getenv(path[1:])), nil
+		}
 		data, err := base64.StdEncoding.DecodeString(os.Getenv(path[1:]))
 		if err != nil {
 			return nil, err
 		}
 		return data, nil
 	}
+	// get data from file
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -41,7 +44,7 @@ func ReadPath(path string) ([]byte, error) {
 // ReadJSON reads the data from path and tries to unmarshal it into supplied structure.
 // See ReadFile description for details on reading data by path.
 func ReadJSON(path string, i interface{}) error {
-	file, err := ReadPath(path)
+	file, err := ReadPath(path, false)
 	if err != nil {
 		return fmt.Errorf("data receiving error; %w", err)
 	}

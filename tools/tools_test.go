@@ -2,7 +2,6 @@ package tools
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -59,22 +58,61 @@ func ExampleDebug() {
 	// DEBUG: it is DEBUG message that should be shown
 }
 
+func TestReadPath(t *testing.T) {
+
+	env := "TEST_ENV_TEST_TEST"
+	defer os.Setenv(env, "")
+	testString := "AAAA"
+	os.Setenv(env, testString)
+
+	// binary data
+	data, err := ReadPath("$"+env, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []byte{0, 0, 0}
+	if !bytes.Equal(data, expected) {
+		t.Fatalf("wrong data read: expected: %+v, received: %+v", expected, data)
+	}
+
+	// non-binary data
+	data, err = ReadPath("$"+env, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(data, []byte(testString)) {
+		t.Fatalf("wrong data read: expected: %+v, received: %+v", testString, data)
+	}
+
+	// wrong binary data
+	os.Setenv(env, "not base64 string")
+	data, err = ReadPath("$"+env, true)
+	if err == nil {
+		t.Fatal("no error when expected")
+	}
+
+	// file reading cases are tested through the ReadJSON tests
+}
+
 func TestReadJSON(t *testing.T) {
+
+	// test data
 	type cnf struct {
 		SVal string
 		NVal int
 	}
-
 	c0 := cnf{
 		SVal: "string",
 		NVal: 42,
 	}
 	c0b, _ := json.Marshal(c0)
 
+	// env tests
 	env := "TEST_ENV_TEST_TEST"
-	os.Setenv(env, base64.StdEncoding.EncodeToString(c0b))
 	defer os.Setenv(env, "")
 
+	os.Setenv(env, string(c0b))
 	c1 := cnf{}
 
 	err := ReadJSON("$"+env, &c1)
@@ -86,12 +124,13 @@ func TestReadJSON(t *testing.T) {
 		t.Fatalf("Stored and received data are not equal:\nstored: (%v)\nreceived: (%v)", c0, c1)
 	}
 
-	os.Setenv(env, string(c0b))
+	os.Setenv(env, `{"wrong":"JSON`)
 	err = ReadJSON("$"+env, &c1)
 	if err == nil {
 		t.Fatal("no error when expected")
 	}
 
+	// file tests
 	err = ReadJSON("non/existing/path", &c1)
 	if err == nil {
 		t.Fatal("no error when expected")
