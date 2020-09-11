@@ -20,9 +20,10 @@ func TestNew(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tdata1 := "test data 1"
-	// tdata2 := "test data 2"
-	// tdata3 := "test data 3"
+	tdata1 := QData{
+		URL:     "some url",
+		Payload: "some payload",
+	}
 
 	err = q.Send(tdata1)
 	if err != nil {
@@ -40,7 +41,7 @@ func TestNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(data)
+	t.Log(*data)
 
 	err = q.Delete(receipt)
 	if err != nil {

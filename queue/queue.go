@@ -4,6 +4,7 @@
 package queue
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -64,27 +65,33 @@ func NewQueue(conf *Config) (*Queue, error) {
 }
 
 // Send puts the data to queue
-func (q *Queue) Send(data string) error {
+func (q *Queue) Send(data QData) error {
+	sdata, _ := json.Marshal(data)
 	_, err := q.q.SendMessage(&sqs.SendMessageInput{
 		QueueUrl:    aws.String(q.queueURL),
-		MessageBody: aws.String(data),
+		MessageBody: aws.String(string(sdata)),
 	})
 	return err
 }
 
 // Receive receives 1 message from queue, It returns message body, receipt handle ID, and error
-func (q *Queue) Receive() (string, string, error) {
+func (q *Queue) Receive() (*QData, string, error) {
 	res, err := q.q.ReceiveMessage(&sqs.ReceiveMessageInput{
 		QueueUrl:            aws.String(q.queueURL),
 		MaxNumberOfMessages: aws.Int64(1),
 	})
 	if err != nil {
-		return "", "", err
+		return nil, "", err
 	}
 	if len(res.Messages) != 1 {
-		return "", "", errors.New("wrong number of messages received")
+		return nil, "", errors.New("wrong number of messages received")
 	}
-	return *res.Messages[0].Body, *res.Messages[0].ReceiptHandle, nil
+	qd := QData{}
+	err = json.Unmarshal([]byte(*res.Messages[0].Body), &qd)
+	if err != nil {
+		return nil, "", err
+	}
+	return &qd, *res.Messages[0].ReceiptHandle, nil
 }
 
 // Delete is ACK responce to queue

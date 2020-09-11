@@ -336,12 +336,10 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 
 	payload, _ := json.Marshal(tData)
 
-	data, _ := json.Marshal(queue.QData{
+	err = q.Send(queue.QData{
 		URL:     osysData.CBURL,
 		Payload: string(payload),
 	})
-
-	err = q.Send(string(data))
 	if err != nil {
 		log.Printf("sending message to call-back queue error: %v", err)
 	}

@@ -5,7 +5,6 @@ package cbhandler
 
 import (
 	"bytes"
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -58,30 +57,20 @@ func New(q *queue.Queue, interval int) chan bool {
 	return quit
 }
 
-func send(q *queue.Queue, d, r string) {
-
-	cbData := queue.QData{}
-	if err := json.Unmarshal([]byte(d), &cbData); err != nil {
-		log.Printf("ERROR: call-back: can't unmarshal data (%s) from queue: %v", d, err)
-		// it's no reason to keep wrong formated data in the queue
-		if err = q.Delete(r); err != nil {
-			log.Printf("ERROR: call-back: deleting wrong message from queue error: %v", err)
-		}
-		return
-	}
+func send(q *queue.Queue, d *queue.QData, r string) {
 
 	// make call-back
-	req, _ := http.NewRequest("POST", cbData.URL, bytes.NewReader([]byte(cbData.Payload)))
+	req, _ := http.NewRequest("POST", d.URL, bytes.NewReader([]byte(d.Payload)))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Printf("ERROR: call-back: can't send data to: %s error: %v", cbData.URL, err)
+		log.Printf("ERROR: call-back: can't send data to: %s error: %v", d.URL, err)
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("ERROR: call-back: receved unsuccess status code: %s while sending data to %s", resp.Status, cbData.URL)
+		log.Printf("ERROR: call-back: receved unsuccess status code: %s while sending data to %s", resp.Status, d.URL)
 		return
 	}
-	log.Printf("INFO: call-back: successfully send call-back to: %s with: %s", cbData.URL, cbData.Payload)
+	log.Printf("INFO: call-back: successfully send call-back to: %s with: %s", d.URL, d.Payload)
 
 	// when callback was succesfully sent try to delete message from queue
 	if err = q.Delete(r); err != nil {
