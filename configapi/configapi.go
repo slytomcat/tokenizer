@@ -57,7 +57,7 @@ func NewConfigAPI(conf *Config, handler CfgAPI) *Capi {
 	go func() {
 		log.Printf("INFO: Starting Config API service at %s", conf.HostPort)
 		var err error
-		if conf.Cert == "" && tools.DEBUG {
+		if conf.Cert == "" {
 			err = server.ListenAndServe()
 		} else {
 			err = server.ListenAndServeTLS(conf.Cert, conf.Key)

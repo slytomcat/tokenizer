@@ -83,7 +83,7 @@ func NewAPI(conf *Config, handler PGAPI) *Handler {
 	go func() {
 		log.Printf("INFO: Starting API service at %s", conf.HostPort)
 		var err error
-		if conf.Cert == "" && tools.DEBUG {
+		if conf.Cert == "" {
 			err = server.ListenAndServe()
 		} else {
 			err = server.ListenAndServeTLS(conf.Cert, conf.Key)

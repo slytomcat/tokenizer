@@ -5,7 +5,7 @@
             "Cert":"<path to TLS certificate, if empty the service starts without TLS in debug mode>",
             "Key":"<path to TLS key>"
         },
-        "CfgAPI":
+    "CfgAPI":
         {
             "HostPort":"<host:port to start configuration service>",
             "Cert":"<path to TLS certificate, if empty the configuration service starts without TLS in debug mode>",
@@ -14,14 +14,29 @@
     "DB":
         {
             "Addrs": [ "<host:port of Redis servers>" ],
-            "Password": "<long password for Redis connection>"
+            "Password": "<long password for Redis connection>",
+            "DSN": "DSN connection string for MySQL: <user>:<password>@tcp(<host>:<port>)/<db_name>",
+            "MaxOpenConns": 10
         },
     "Cache":
         {
             "Bucket":     "<s3 bucket>",
+            "Path":       "<path in bucket>",
             "AccesKeyID": "<AWS Access Key ID>",
             "SecretKey":  "<AWS Secret Key>",
-            "Region":     "<Region >"
+            "Region":     "<Region>"
+        },
+    "QUEUE":
+        {
+            "AccesKeyID": "<AWS Access Key ID>",
+            "SecretKey":  "<AWS Secret Key>",
+            "Region":     "<Region>",
+            "Endpoint":   "<host:port> - optional",
+            "QueueName":  "<Name of queue>"
+        },
+    "CBH":
+        {
+            "PollingInterval":1
         },
     "MDES":
         {
