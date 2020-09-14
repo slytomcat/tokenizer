@@ -338,11 +338,6 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 
 	assetURL, err := storeAsset("MC", t.ProductConfig.CardBackgroundCombinedAssetID)
 	// update token data
-	timeStamp, err := time.Parse(time.RFC3339, t.StatusTimestamp)
-	if err != nil {
-		timeStamp = time.Now()
-	}
-
 	// update only new data if data received
 	update, updated := tools.Updater()
 	update(&tData.AssetURL, assetURL)
@@ -358,10 +353,15 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 		tData.AssuranceLevel = t.TokenInfo.TokenAssuranceLevel
 		*updated = true
 	}
+
 	if t.StatusTimestamp != "" {
-		tData.StatusTimestamp = timeStamp
-		*updated = true
+		timeStamp, err := time.Parse(time.RFC3339, t.StatusTimestamp)
+		if err == nil {
+			tData.StatusTimestamp = timeStamp
+			*updated = true
+		}
 	}
+
 	if *updated {
 		db.StoreTokenInfo(mcPrefix+t.TokenUniqueReference, tData)
 	}
