@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 )
 
 // DEBUG is the flag that allove to output debugging information. It should be disabled in PROD environment
@@ -110,4 +111,50 @@ func ReadBodyToStruct(body io.ReadCloser, i interface{}) error {
 		return err
 	}
 	return json.Unmarshal(data, i)
+}
+
+// AppLog is application logging
+type AppLog struct {
+	host    string
+	app     string
+	pid     int
+	project string
+}
+
+// NewAppLog creates new applog
+func NewAppLog(host, app, project string) *AppLog {
+	return &AppLog{
+		host:    host,
+		app:     app,
+		project: project,
+		pid:     os.Getpid(),
+	}
+}
+
+// Print prints logging message to output
+func (a *AppLog) Print(level, mtype, message string, data interface{}) {
+
+	m, _ := json.Marshal(struct {
+		Ts      string
+		Host    string
+		App     string
+		Pid     int
+		Project string
+		Level   string
+		Type    string
+		Message string
+		Data    interface{}
+	}{
+		Ts:      time.Now().Format(time.RFC3339Nano),
+		Host:    a.host,
+		App:     a.app,
+		Pid:     a.pid,
+		Project: a.project,
+		Level:   level,
+		Type:    mtype,
+		Message: message,
+		Data:    data,
+	})
+
+	fmt.Println(string(m))
 }

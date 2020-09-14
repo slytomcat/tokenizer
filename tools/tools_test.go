@@ -271,3 +271,14 @@ func (wr) Close() error { return nil }
 func (wr) Read([]byte) (int, error) {
 	return 0, errors.New("expected error")
 }
+
+func TestAppLog(t *testing.T) {
+	l := NewAppLog("localhost", "testApp", "tokenizer")
+	l.Print("INFO", "testType", "test messge", struct {
+		Question string
+		Answer   int
+	}{
+		Question: "The Ultimate Question of Life, the Universe, and Everything",
+		Answer:   42,
+	})
+}
