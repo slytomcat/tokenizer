@@ -4,40 +4,29 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 )
 
-func TestErrorCollector(t *testing.T) {
-	col, rep := ErrorCollector("test errors: %+v")
+func ExampleErrorCollector() {
+	collect, report := ErrorCollector("test errors: %+v")
 
-	if rep() != nil {
-		t.Fatal("empty colector reports not nil")
-	}
+	fmt.Println(report())
 
-	col(errors.New("error 1"))
+	collect(errors.New("error 1"))
 
-	if rep() == nil {
-		t.Fatal("colector with error reports nil")
-	}
+	fmt.Println(report())
 
-	t.Log(rep())
-	exp := "test errors: [error 1]"
-	if rep().Error() != exp {
-		t.Errorf("unexpected report: got: '%s', expected: %s", rep(), exp)
-	}
+	collect(errors.New("error 2"))
 
-	col(errors.New("error 2"))
+	fmt.Println(report())
 
-	if rep() == nil {
-		t.Fatal("colector with error reports nil")
-	}
-	t.Log(rep())
-	exp = "test errors: [error 1 error 2]"
-	if rep().Error() != exp {
-		t.Errorf("unexpected report: got: '%s', expected: %s", rep(), exp)
-	}
+	// Output:
+	// <nil>
+	// test errors: [error 1]
+	// test errors: [error 1 error 2]
 }
 
 func ExampleDebug() {
