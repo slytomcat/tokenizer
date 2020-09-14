@@ -28,9 +28,7 @@ type TokenStatus struct {
 // PGAPI - payment gate API intreface
 type PGAPI interface {
 	Tokenize(string, string, string, string, string, string, string) (string, string, error)
-	Delete(string, []string, string, string) ([]TokenStatus, error)
-	Suspend(string, []string, string, string) ([]TokenStatus, error)
-	Unsuspend(string, []string, string, string) ([]TokenStatus, error)
+	Manage(string, string, []string, string, string) ([]TokenStatus, error)
 	Transact(string, string) (string, string, string, error)
 	HealthCheck() error
 }
@@ -192,7 +190,6 @@ func (h Handler) unsuspendHandler(w http.ResponseWriter, req *http.Request) {
 	h.handle("U", w, req)
 }
 
-// delete handler for API calls
 func (h Handler) deleteHandler(w http.ResponseWriter, req *http.Request) {
 	h.handle("D", w, req)
 }
@@ -204,20 +201,13 @@ func (h Handler) handle(t string, w http.ResponseWriter, req *http.Request) {
 		CausedBy              string
 		ReasonCode            string
 	}{}
-	err := tools.ReadBodyToStruct(req.Body, &reqData)
-	if err != nil {
+
+	if err := tools.ReadBodyToStruct(req.Body, &reqData); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	var statuses []TokenStatus
-	switch t {
-	case "D":
-		statuses, err = h.apiHandler.Delete(reqData.Type, reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
-	case "S":
-		statuses, err = h.apiHandler.Suspend(reqData.Type, reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
-	case "U":
-		statuses, err = h.apiHandler.Unsuspend(reqData.Type, reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
-	}
+
+	statuses, err := h.apiHandler.Manage(t, reqData.Type, reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
 	if err != nil {
 		// TO DO: log more error details
 		w.WriteHeader(http.StatusInternalServerError)

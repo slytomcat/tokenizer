@@ -208,7 +208,8 @@ func TestTransactAPI(t *testing.T) {
 }
 
 func TestDeleteAPI(t *testing.T) {
-	sStats, err := mdesAPI.Delete(
+	sStats, err := mdesAPI.Manage(
+		"D",
 		[]string{
 			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
 			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",
@@ -225,7 +226,8 @@ func TestDeleteAPI(t *testing.T) {
 }
 
 func TestSuspendAPI(t *testing.T) {
-	sStats, err := mdesAPI.Suspend(
+	sStats, err := mdesAPI.Manage(
+		"S",
 		[]string{
 			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
 			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",
@@ -242,7 +244,8 @@ func TestSuspendAPI(t *testing.T) {
 }
 
 func TestUnsuspendAPI(t *testing.T) {
-	sStats, err := mdesAPI.Unsuspend(
+	sStats, err := mdesAPI.Manage(
+		"U",
 		[]string{
 			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
 			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",

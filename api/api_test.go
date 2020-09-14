@@ -33,16 +33,8 @@ func (testAPIhandler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (s
 	log.Printf("Tokenize: outsys: %s, TRID: %s, TYP: %s, PAN: %s , Exp: %s, CVC: %s, source: %s", outS, trid, typ, pan, exp, cvc, source)
 	return "TUR", "Status", nil
 }
-func (testAPIhandler) Delete(typ string, tokens []string, caused, reason string) ([]TokenStatus, error) {
-	log.Printf("Delete tokens: %v, type: %s reason: %s, causedby: %s ", tokens, typ, reason, caused)
-	return []TokenStatus{TokenStatus{"TUR", "STSTUS", "TIMESTAMP", []string{"SuspendedBy"}}}, nil
-}
-func (testAPIhandler) Suspend(typ string, tokens []string, caused, reason string) ([]TokenStatus, error) {
-	log.Printf("Suspend tokens: %v, type: %s reason: %s, causedby: %s ", tokens, typ, reason, caused)
-	return []TokenStatus{TokenStatus{"TUR", "STSTUS", "TIMESTAMP", []string{"SuspendedBy"}}}, nil
-}
-func (testAPIhandler) Unsuspend(typ string, tokens []string, caused, reason string) ([]TokenStatus, error) {
-	log.Printf("Unsuspend tokens: %v, type: %s reason: %s, causedby: %s ", tokens, typ, reason, caused)
+func (testAPIhandler) Manage(method, typ string, tokens []string, caused, reason string) ([]TokenStatus, error) {
+	log.Printf("Manage method: %s tokens: %v, type: %s reason: %s, causedby: %s ", method, tokens, typ, reason, caused)
 	return []TokenStatus{TokenStatus{"TUR", "STSTUS", "TIMESTAMP", []string{"SuspendedBy"}}}, nil
 }
 func (testAPIhandler) Transact(typ, tur string) (string, string, string, error) {

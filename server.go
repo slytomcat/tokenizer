@@ -256,24 +256,10 @@ func storeAsset(typ, assetID string) (string, error) {
 }
 
 // Delete deletes tokens ad return the current tokens statuses
-func (h handler) Delete(typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
-	return h.handle(m.Delete, typ, tokens, caused, reason)
-}
-
-func (h handler) Suspend(typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
-	return h.handle(m.Suspend, typ, tokens, caused, reason)
-}
-func (h handler) Unsuspend(typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
-	return h.handle(m.Unsuspend, typ, tokens, caused, reason)
-}
-
-func (h handler) handle(
-	fn func([]string, string, string) ([]mdes.TokenStatus, error),
-	typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
+func (h handler) Manage(method, typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
 	switch typ {
-
 	case "MC":
-		tokenStatuses, err := fn(tokens, caused, reason)
+		tokenStatuses, err := m.Manage(method, tokens, caused, reason)
 		if err != nil {
 			return nil, err
 		}

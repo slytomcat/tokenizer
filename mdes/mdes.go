@@ -463,26 +463,8 @@ func (m MDESapi) Transact(tur string) (*CryptogramData, error) {
 	return &returnData, nil
 }
 
-// Suspend is implementation of MDES Suspend API call
-func (m MDESapi) Suspend(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
-
-	return m.manageTokens(m.urlSuspend, tokens, causedBy, reasonCode)
-}
-
-// Unsuspend is implementation of MDES Unsuspend API call
-func (m MDESapi) Unsuspend(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
-
-	return m.manageTokens(m.urlUnsuspend, tokens, causedBy, reasonCode)
-}
-
-// Delete is implementation of MDES Delete API call
-func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
-
-	return m.manageTokens(m.urlDelete, tokens, causedBy, reasonCode)
-}
-
-// manageTokens - backend for suspend|unsuspend|delete universal API implementation of MDES Transact API calls
-func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
+// Manage - common func for suspend|unsuspend|delete universal API implementation of MDES Transact API calls
+func (m MDESapi) Manage(method string, tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 
 	payload, _ := json.Marshal(struct {
 		ResponseHost          string   `json:"responseHost"`
@@ -498,6 +480,15 @@ func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode 
 		ReasonCode:            reasonCode,
 	})
 
+	var url string
+	switch method {
+	case "D":
+		url = m.urlDelete
+	case "S":
+		url = m.urlSuspend
+	case "U":
+		url = m.urlUnsuspend
+	}
 	respone, err := m.request("POST", url, payload)
 	if err != nil {
 		return nil, err
