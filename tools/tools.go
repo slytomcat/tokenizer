@@ -118,15 +118,17 @@ type AppLog struct {
 	host    string
 	app     string
 	pid     int
+	env     string
 	project string
 }
 
 // NewAppLog creates new applog
-func NewAppLog(host, app, project string) *AppLog {
+func NewAppLog(host, app, project, env string) *AppLog {
 	return &AppLog{
 		host:    host,
 		app:     app,
 		project: project,
+		env:     env,
 		pid:     os.Getpid(),
 	}
 }
@@ -135,21 +137,23 @@ func NewAppLog(host, app, project string) *AppLog {
 func (a *AppLog) Print(level, mtype, message string, data interface{}) {
 
 	m, _ := json.Marshal(struct {
-		Ts      string
-		Host    string
-		App     string
-		Pid     int
-		Project string
-		Level   string
-		Type    string
-		Message string
-		Data    interface{}
+		Ts      string      `json:"ts"`
+		Host    string      `json:"host"`
+		App     string      `json:"app"`
+		Pid     int         `json:"pid"`
+		Project string      `json:"project"`
+		Env     string      `json:"env"`
+		Level   string      `json:"level"`
+		Type    string      `json:"type"`
+		Message string      `json:"message"`
+		Data    interface{} `json:"data"`
 	}{
 		Ts:      time.Now().Format(time.RFC3339Nano),
 		Host:    a.host,
 		App:     a.app,
 		Pid:     a.pid,
 		Project: a.project,
+		Env:     a.env,
 		Level:   level,
 		Type:    mtype,
 		Message: message,

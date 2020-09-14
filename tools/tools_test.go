@@ -273,7 +273,7 @@ func (wr) Read([]byte) (int, error) {
 }
 
 func TestAppLog(t *testing.T) {
-	l := NewAppLog("localhost", "testApp", "tokenizer")
+	l := NewAppLog("localhost", "testApp", "tokenizer", "prod")
 	l.Print("INFO", "testType", "test messge", struct {
 		Question string
 		Answer   int
