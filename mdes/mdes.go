@@ -48,7 +48,7 @@ type Config struct {
 	SignKeyPassw     string
 	EcryptKey        string
 	EncrypKeyFp      string
-	DecryptKeyPassw   string
+	DecryptKeyPassw  string
 	DecryptKeys      []keywfp // to support multiple keys
 	APIKey           string
 }
@@ -65,8 +65,8 @@ type MDESapi struct {
 	urlTransact        string
 	urlDelete          string
 	urlGetAsset        string
-	// urlSuspend         string
-	// urlUnsuspend       string
+	urlSuspend         string
+	urlUnsuspend       string
 	// urlGetToken        string
 	// urlSearch          string
 	cbHandler func(NotificationTokenData)
@@ -119,8 +119,8 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData)) (*MDESapi, 
 	mAPI.urlTransact = fmt.Sprintf("https://%sapi.mastercard.com/mdes/remotetransaction/%s1/0/transact", MDESsys, MDESenv)
 	mAPI.urlDelete = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/delete", MDESsys, MDESenv)
 	mAPI.urlGetAsset = fmt.Sprintf("https://%sapi.mastercard.com/mdes/assets/%s1/0/asset/", MDESsys, MDESenv)
-	// mAPI.urlSuspend = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/suspend", MDESsys, MDESenv)
-	// mAPI.urlUnsuspend = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/unsuspend", MDESsys, MDESenv)
+	mAPI.urlSuspend = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/suspend", MDESsys, MDESenv)
+	mAPI.urlUnsuspend = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/unsuspend", MDESsys, MDESenv)
 	// mAPI.urlGetToken = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/getToken", MDESsys, MDESenv)
 	// mAPI.urlSearch = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/searchTokens", MDESsys, MDESenv)
 
@@ -410,6 +410,10 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 	// Falsificate assetID
 	responseStruct.TokenInfo.BrandAssetID = "3789637f-32a1-4810-a138-4bf34501c509"
 	// REMOVE IT BY MOVING TO MTF|PROD ! ! !
+	responseStruct.TokenInfo.IsCoBranded = responseStruct.ProductConfig.IsCoBranded
+	responseStruct.TokenInfo.CoBrandName = responseStruct.ProductConfig.CoBrandName
+	responseStruct.TokenInfo.IssuerName = responseStruct.ProductConfig.IssuerName
+
 	return &responseStruct.TokenInfo, nil
 }
 
@@ -459,26 +463,26 @@ func (m MDESapi) Transact(tur string) (*CryptogramData, error) {
 	return &returnData, nil
 }
 
-// // Suspend is implementation of MDES Suspend API call
-// func (m MDESapi) Suspend(tokens []string, causedBy, reasonCode string) ([]MCTokenStatus, error) {
+// Suspend is implementation of MDES Suspend API call
+func (m MDESapi) Suspend(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 
-// 	return m.manageTokens(m.urlSuspend, tokens, causedBy, reasonCode)
-// }
+	return m.manageTokens(m.urlSuspend, tokens, causedBy, reasonCode)
+}
 
-// // Unsuspend is implementation of MDES Unsuspend API call
-// func (m MDESapi) Unsuspend(tokens []string, causedBy, reasonCode string) ([]MCTokenStatus, error) {
+// Unsuspend is implementation of MDES Unsuspend API call
+func (m MDESapi) Unsuspend(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 
-// 	return m.manageTokens(m.urlUnsuspend, tokens, causedBy, reasonCode)
-// }
+	return m.manageTokens(m.urlUnsuspend, tokens, causedBy, reasonCode)
+}
 
 // Delete is implementation of MDES Delete API call
 func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 
-	//	return m.manageTokens(m.urlDelete, tokens, causedBy, reasonCode)
-	//}
+	return m.manageTokens(m.urlDelete, tokens, causedBy, reasonCode)
+}
 
-	// manageTokens - backend for suspend|unsuspend|delete universal API implementation of MDES Transact API calls
-	//func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
+// manageTokens - backend for suspend|unsuspend|delete universal API implementation of MDES Transact API calls
+func (m MDESapi) manageTokens(url string, tokens []string, causedBy, reasonCode string) ([]TokenStatus, error) {
 
 	payload, _ := json.Marshal(struct {
 		ResponseHost          string   `json:"responseHost"`
@@ -494,7 +498,7 @@ func (m MDESapi) Delete(tokens []string, causedBy, reasonCode string) ([]TokenSt
 		ReasonCode:            reasonCode,
 	})
 
-	respone, err := m.request("POST", m.urlDelete, payload) //url, payload)
+	respone, err := m.request("POST", url, payload)
 	if err != nil {
 		return nil, err
 	}

@@ -13,6 +13,10 @@ type TokenData struct {
 	StatusTimestamp time.Time
 	Last4           string
 	AssetURL        string
+	Cobranded       bool
+	CobrandName     string
+	IssuerName      string
+	AssuranceLevel  int
 }
 
 // OutSysInfo - out system information

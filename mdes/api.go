@@ -47,6 +47,10 @@ type TokenInfo struct {
 	BrandAssetID            string
 	ProductCategory         string
 	PaymentAccountReference string
+	TokenAssuranceLevel     int
+	IsCoBranded             bool
+	CoBrandName             string
+	IssuerName              string
 }
 
 // MediaContent bla-bla
@@ -78,7 +82,7 @@ type ProductConfig struct {
 	// IconAssetID                   string
 	// ForegroundColor               string
 	CardBackgroundCombinedAssetID string
-	IsCoBranded                   string
+	IsCoBranded                   bool
 	CoBrandName                   string
 	IssuerName                    string
 	ShortDescription              string

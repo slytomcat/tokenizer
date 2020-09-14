@@ -37,6 +37,14 @@ func (testAPIhandler) Delete(typ string, tokens []string, caused, reason string)
 	log.Printf("Delete tokens: %v, type: %s reason: %s, causedby: %s ", tokens, typ, reason, caused)
 	return []TokenStatus{TokenStatus{"TUR", "STSTUS", "TIMESTAMP", []string{"SuspendedBy"}}}, nil
 }
+func (testAPIhandler) Suspend(typ string, tokens []string, caused, reason string) ([]TokenStatus, error) {
+	log.Printf("Suspend tokens: %v, type: %s reason: %s, causedby: %s ", tokens, typ, reason, caused)
+	return []TokenStatus{TokenStatus{"TUR", "STSTUS", "TIMESTAMP", []string{"SuspendedBy"}}}, nil
+}
+func (testAPIhandler) Unsuspend(typ string, tokens []string, caused, reason string) ([]TokenStatus, error) {
+	log.Printf("Unsuspend tokens: %v, type: %s reason: %s, causedby: %s ", tokens, typ, reason, caused)
+	return []TokenStatus{TokenStatus{"TUR", "STSTUS", "TIMESTAMP", []string{"SuspendedBy"}}}, nil
+}
 func (testAPIhandler) Transact(typ, tur string) (string, string, string, error) {
 	log.Printf("Transact: typ: %s, TUR: %s", typ, tur)
 	return "dpan", "exp", "crypto", nil
@@ -134,6 +142,29 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+func TestSuspend(t *testing.T) {
+	c, _, err := requst(testurl+"/api/v1/suspend",
+		[]byte(`{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}`),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c != http.StatusOK {
+		t.Fatalf("Wrong responce code: %v", c)
+	}
+}
+
+func TestUnsuspend(t *testing.T) {
+	c, _, err := requst(testurl+"/api/v1/unsuspend",
+		[]byte(`{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}`),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c != http.StatusOK {
+		t.Fatalf("Wrong responce code: %v", c)
+	}
+}
 func TestHealthCheck(t *testing.T) {
 	c, _, err := requst(testurl+"/api/v1/healthcheck", []byte{})
 	if err != nil {

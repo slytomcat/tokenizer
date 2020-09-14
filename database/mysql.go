@@ -53,11 +53,14 @@ func (d *Db) Check() error {
 // StoreTokenInfo - stores token info
 func (d *Db) StoreTokenInfo(tur string, ti *TokenData) error {
 	_, err := d.db.Exec(
-		`INSERT INTO token(tur, osys, trid, status, statustimestamp, last4, assetURL) VALUES(?,?,?,?,?,?,?)
+		`INSERT INTO token(tur, osys, trid, status, statustimestamp, last4,
+			assuranceLevel, cobranded, cobrandName, issuerName, assetURL) VALUES(?,?,?,?,?,?,?,?,?,?,?)
 		ON DUPLICATE KEY UPDATE
 			osys=VALUES(osys), trid=VALUES(trid), status=VALUES(status), statustimestamp=VALUES(statustimestamp),
-			last4=VALUES(last4), assetURL=VALUES(assetURL)`,
-		tur, ti.OutSystem, ti.RequestorID, ti.Status, ti.StatusTimestamp, ti.Last4, ti.AssetURL)
+			last4=VALUES(last4), assuranceLevel=VALUES(assuranceLevel), cobranded=VALUES(cobranded),
+			cobrandName=VALUES(cobrandName), issuerName=VALUES(issuerName), assetURL=VALUES(assetURL)`,
+		tur, ti.OutSystem, ti.RequestorID, ti.Status, ti.StatusTimestamp, ti.Last4,
+		ti.AssuranceLevel, ti.Cobranded, ti.CobrandName, ti.IssuerName, ti.AssetURL)
 
 	return err
 }
@@ -66,10 +69,16 @@ func (d *Db) StoreTokenInfo(tur string, ti *TokenData) error {
 func (d *Db) GetTokenInfo(tur string) (*TokenData, error) {
 	ti := TokenData{}
 	row := d.db.QueryRow(`
-		SELECT osys, trid, status, statustimestamp, last4, assetURL FROM token WHERE tur=?`,
+		SELECT 
+		  osys, trid, status, statustimestamp, last4,
+		  assuranceLevel, cobranded, cobrandName, issuerName, assetURL 
+		FROM token WHERE tur=?`,
 		tur,
 	)
-	err := row.Scan(&ti.OutSystem, &ti.RequestorID, &ti.Status, &ti.StatusTimestamp, &ti.Last4, &ti.AssetURL)
+	err := row.Scan(
+		&ti.OutSystem, &ti.RequestorID, &ti.Status, &ti.StatusTimestamp, &ti.Last4,
+		&ti.AssuranceLevel, &ti.Cobranded, &ti.CobrandName, &ti.IssuerName, &ti.AssetURL,
+	)
 	if err != nil {
 		return nil, errorHandler(tur, err)
 	}

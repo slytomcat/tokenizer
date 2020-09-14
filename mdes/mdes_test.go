@@ -224,6 +224,39 @@ func TestDeleteAPI(t *testing.T) {
 	log.Printf("Received data:\n%+v", sStats)
 }
 
+func TestSuspendAPI(t *testing.T) {
+	sStats, err := mdesAPI.Suspend(
+		[]string{
+			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
+			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",
+			"DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532",
+		},
+		"CARDHOLDER",
+		"OTHER",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Printf("Received data:\n%+v", sStats)
+}
+
+func TestUnsuspendAPI(t *testing.T) {
+	sStats, err := mdesAPI.Unsuspend(
+		[]string{
+			"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45",
+			"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb",
+			"DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532",
+		},
+		"CARDHOLDER",
+		"OTHER",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Printf("Received data:\n%+v", sStats)
+}
 func TestGetAssetAPI(t *testing.T) {
 
 	_, err := mdesAPI.GetAsset("3789637f-32a1-4810-a138-4bf34501c509")

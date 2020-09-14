@@ -52,7 +52,7 @@ func init() {
 // Config is the service configuration values set
 type Config struct {
 	API    api.Config
-	DB     database.Config
+	DB     database.ConfigS
 	Cache  cache.Config
 	QUEUE  queue.Config
 	MDES   mdes.Config
@@ -78,7 +78,7 @@ func main() {
 func doMain(config *Config) {
 	var err error
 	// connect to databse
-	db, err = database.NewDB(&config.DB)
+	db, err = database.NewDBs(&config.DB)
 	tools.PanicIf(err)
 
 	// connect to queue
@@ -139,7 +139,20 @@ func (h handler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (string
 			return "", "", err
 		}
 		// store token info for call back handling and start media cache update if requered
-		go storeTokenData(outS, trid, typ, tokenInfo.TokenUniqueReference, "INACTIVE", time.Now(), tokenInfo.AccountPanSuffix, tokenInfo.BrandAssetID)
+		go storeTokenData(
+			outS,
+			trid,
+			typ,
+			tokenInfo.TokenUniqueReference,
+			"INACTIVE",
+			time.Now(),
+			tokenInfo.AccountPanSuffix,
+			tokenInfo.IsCoBranded,
+			tokenInfo.CoBrandName,
+			tokenInfo.IssuerName,
+			tokenInfo.BrandAssetID,
+			tokenInfo.TokenAssuranceLevel,
+		)
 
 		return tokenInfo.TokenUniqueReference, "INACTIVE", nil
 	case "VISA":
@@ -150,7 +163,8 @@ func (h handler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (string
 }
 
 // storeTokenData - stores token data for future token updates from MPS
-func storeTokenData(outSystem, requestorID, typ, tokenUniqueReference, status string, statusTimestamp time.Time, last4, assetID string) {
+func storeTokenData(outSystem, requestorID, typ, tokenUniqueReference, status string, statusTimestamp time.Time, last4 string,
+	cbranded bool, cbname, iname, assetID string, assurance int) {
 	switch typ {
 	case "MC":
 		// get asset url
@@ -164,8 +178,12 @@ func storeTokenData(outSystem, requestorID, typ, tokenUniqueReference, status st
 			RequestorID:     requestorID,
 			Status:          status,
 			StatusTimestamp: statusTimestamp,
-			AssetURL:        assetURL,
 			Last4:           last4,
+			Cobranded:       cbranded,
+			CobrandName:     cbname,
+			IssuerName:      iname,
+			AssetURL:        assetURL,
+			AssuranceLevel:  assurance,
 		}
 
 		err = db.StoreTokenInfo(mcPrefix+tokenUniqueReference, &data)
@@ -239,10 +257,23 @@ func storeAsset(typ, assetID string) (string, error) {
 
 // Delete deletes tokens ad return the current tokens statuses
 func (h handler) Delete(typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
+	return h.handle(m.Delete, typ, tokens, caused, reason)
+}
+
+func (h handler) Suspend(typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
+	return h.handle(m.Suspend, typ, tokens, caused, reason)
+}
+func (h handler) Unsuspend(typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
+	return h.handle(m.Unsuspend, typ, tokens, caused, reason)
+}
+
+func (h handler) handle(
+	fn func([]string, string, string) ([]mdes.TokenStatus, error),
+	typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
 	switch typ {
 
 	case "MC":
-		tokenStatuses, err := m.Delete(tokens, caused, reason)
+		tokenStatuses, err := fn(tokens, caused, reason)
 		if err != nil {
 			return nil, err
 		}
@@ -317,6 +348,16 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 	update(&tData.AssetURL, assetURL)
 	update(&tData.Last4, t.TokenInfo.AccountPanSuffix)
 	update(&tData.Status, t.Status)
+	if t.ProductConfig.IsCoBranded != false && tData.Cobranded != t.ProductConfig.IsCoBranded {
+		tData.Cobranded = t.ProductConfig.IsCoBranded
+		*updated = true
+	}
+	update(&tData.CobrandName, t.ProductConfig.CoBrandName)
+	update(&tData.IssuerName, t.ProductConfig.IssuerName)
+	if t.TokenInfo.TokenAssuranceLevel != 0 && tData.AssuranceLevel != t.TokenInfo.TokenAssuranceLevel {
+		tData.AssuranceLevel = t.TokenInfo.TokenAssuranceLevel
+		*updated = true
+	}
 	if t.StatusTimestamp != "" {
 		tData.StatusTimestamp = timeStamp
 		*updated = true

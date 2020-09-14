@@ -15,6 +15,10 @@ CREATE TABLE `token` (
   `status` varchar(16) DEFAULT NULL,
   `statustimestamp` timestamp NULL DEFAULT NULL,
   `last4` varchar(4) DEFAULT NULL,
+  `assuranceLevel` decimal DEFAULT NULL,  
+  `cobranded` boolean DEFAULT NULL, 
+  `cobrandName` varchar(60) DEFAULT NULL, 
+  `issuerName` varchar(60) DEFAULT NULL,
   `assetURL` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`tur`)
 ) ENGINE=InnoDB;

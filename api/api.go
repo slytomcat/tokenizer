@@ -29,6 +29,8 @@ type TokenStatus struct {
 type PGAPI interface {
 	Tokenize(string, string, string, string, string, string, string) (string, string, error)
 	Delete(string, []string, string, string) ([]TokenStatus, error)
+	Suspend(string, []string, string, string) ([]TokenStatus, error)
+	Unsuspend(string, []string, string, string) ([]TokenStatus, error)
 	Transact(string, string) (string, string, string, error)
 	HealthCheck() error
 }
@@ -46,6 +48,10 @@ func (h Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		h.tokenizeHandler(resp, req)
 	case "POST/api/v1/delete":
 		h.deleteHandler(resp, req)
+	case "POST/api/v1/suspend":
+		h.suspendHandler(resp, req)
+	case "POST/api/v1/unsuspend":
+		h.unsuspendHandler(resp, req)
 	case "POST/api/v1/transact":
 		h.transactHandler(resp, req)
 	case "POST/api/v1/healthcheck":
@@ -179,22 +185,39 @@ func (h Handler) transactHandler(w http.ResponseWriter, req *http.Request) {
 	w.Write(resp)
 }
 
+func (h Handler) suspendHandler(w http.ResponseWriter, req *http.Request) {
+	h.handle("S", w, req)
+}
+func (h Handler) unsuspendHandler(w http.ResponseWriter, req *http.Request) {
+	h.handle("U", w, req)
+}
+
 // delete handler for API calls
 func (h Handler) deleteHandler(w http.ResponseWriter, req *http.Request) {
+	h.handle("D", w, req)
+}
 
+func (h Handler) handle(t string, w http.ResponseWriter, req *http.Request) {
 	reqData := struct {
 		Type                  string
 		TokenUniqueReferences []string
 		CausedBy              string
 		ReasonCode            string
 	}{}
-
-	if err := tools.ReadBodyToStruct(req.Body, &reqData); err != nil {
+	err := tools.ReadBodyToStruct(req.Body, &reqData)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-
-	statuses, err := h.apiHandler.Delete(reqData.Type, reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
+	var statuses []TokenStatus
+	switch t {
+	case "D":
+		statuses, err = h.apiHandler.Delete(reqData.Type, reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
+	case "S":
+		statuses, err = h.apiHandler.Suspend(reqData.Type, reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
+	case "U":
+		statuses, err = h.apiHandler.Unsuspend(reqData.Type, reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
+	}
 	if err != nil {
 		// TO DO: log more error details
 		w.WriteHeader(http.StatusInternalServerError)
