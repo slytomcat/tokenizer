@@ -89,6 +89,9 @@ func (q *Queue) Receive() (*QData, string, error) {
 	qd := QData{}
 	err = json.Unmarshal([]byte(*res.Messages[0].Body), &qd)
 	if err != nil {
+		// it's no reason to keep the incorrectly formatted message in the queue
+		// try to delete it
+		q.Delete(*res.Messages[0].ReceiptHandle)
 		return nil, "", err
 	}
 	return &qd, *res.Messages[0].ReceiptHandle, nil

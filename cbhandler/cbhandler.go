@@ -28,6 +28,7 @@ func New(q *queue.Queue, interval int) chan bool {
 
 	// make ticker
 	tick := time.NewTicker(time.Second * time.Duration(interval))
+	defer tick.Stop()
 
 	// make quit request chanel
 	quit := make(chan bool, 1)
