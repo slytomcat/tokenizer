@@ -113,10 +113,11 @@ func (d *Db) GetAsset(id string) (*Asset, error) {
 func (d *Db) StoreOutSysInfo(oSys string, oSysInfo *OutSysInfo) error {
 
 	_, err := d.db.Exec(
-		`INSERT INTO osystem(osys,cburl) VALUES(?,?)
-		ON DUPLICATE KEY UPDATE	cburl=VALUES(cburl)`,
+		`INSERT INTO osystem(osys,cburl,tridurl) VALUES(?,?,?)
+		ON DUPLICATE KEY UPDATE	cburl=VALUES(cburl), tridurl=VALUES(tridurl)`,
 		oSys,
 		oSysInfo.CBURL,
+		oSysInfo.TRIDURL,
 	)
 	return err
 }
@@ -125,10 +126,10 @@ func (d *Db) StoreOutSysInfo(oSys string, oSysInfo *OutSysInfo) error {
 func (d *Db) GetOutSysInfo(oSys string) (*OutSysInfo, error) {
 	oi := OutSysInfo{}
 	row := d.db.QueryRow(`
-		SELECT cburl FROM osystem WHERE osys=?`,
+		SELECT cburl, tridurl FROM osystem WHERE osys=?`,
 		oSys,
 	)
-	err := row.Scan(&oi.CBURL)
+	err := row.Scan(&oi.CBURL, &oi.TRIDURL)
 	if err != nil {
 		return nil, errorHandler(oSys, err)
 	}
@@ -156,4 +157,30 @@ func (d *Db) GetTRSecrets(trid string) (*TRSecrets, error) {
 		return nil, errorHandler(trid, err)
 	}
 	return &ts, nil
+}
+
+// StoreMerchant - stores merchant info
+func (d *Db) StoreMerchant(id string, mi *Merchant) error {
+
+	_, err := d.db.Exec(
+		`INSERT INTO merchant(id,osys) VALUES(?,?)
+		ON DUPLICATE KEY UPDATE	osys=VALUES(osys)`,
+		id,
+		mi.OutSystem,
+	)
+	return err
+}
+
+// GetMerchant - returns merchant info
+func (d *Db) GetMerchant(id string) (*Merchant, error) {
+	mi := Merchant{}
+	row := d.db.QueryRow(`
+		SELECT osys FROM merchant WHERE id=?`,
+		id,
+	)
+	err := row.Scan(&mi.OutSystem)
+	if err != nil {
+		return nil, errorHandler(id, err)
+	}
+	return &mi, nil
 }

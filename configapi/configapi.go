@@ -12,8 +12,8 @@ import (
 
 // CfgAPI - configuration api handlers interface
 type CfgAPI interface {
-	SetOutSystem(oSys, cburl string) error
-	RegisterMCTRID(id, name string) error
+	SetOutSystem(oSys, cburl, tridurl string) error
+	RegisterMCTRID(oSys, id, name string) error
 	SetTRSecrets(trid, apikey string, signkey, decryptkey *rsa.PrivateKey, encryptkey *rsa.PublicKey) error
 }
 
@@ -78,8 +78,9 @@ func NewConfigAPI(conf *Config, handler CfgAPI) *Capi {
 func (c *Capi) addOutSystem(w http.ResponseWriter, r *http.Request) {
 
 	reqData := struct {
-		OutSys string
-		CBURL  string
+		OutSys  string
+		CBURL   string
+		TRIDURL string
 	}{}
 
 	if err := tools.ReadBodyToStruct(r.Body, &reqData); err != nil {
@@ -87,7 +88,7 @@ func (c *Capi) addOutSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := c.handler.SetOutSystem(reqData.OutSys, reqData.CBURL); err != nil {
+	if err := c.handler.SetOutSystem(reqData.OutSys, reqData.CBURL, reqData.TRIDURL); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -96,16 +97,16 @@ func (c *Capi) addOutSystem(w http.ResponseWriter, r *http.Request) {
 func (c *Capi) newTRID(w http.ResponseWriter, r *http.Request) {
 
 	reqData := struct {
-		ID   string
-		Name string
-		// keys in []byte
+		OutSys string
+		ID     string
+		Name   string
 	}{}
 
 	if err := tools.ReadBodyToStruct(r.Body, &reqData); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err := c.handler.RegisterMCTRID(reqData.ID, reqData.Name)
+	err := c.handler.RegisterMCTRID(reqData.OutSys, reqData.ID, reqData.Name)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

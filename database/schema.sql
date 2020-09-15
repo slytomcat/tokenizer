@@ -32,6 +32,7 @@ CREATE TABLE `asset` (
 CREATE TABLE `osystem` (
   `osys` varchar(30) NOT NULL,
   `cburl` varchar(100) DEFAULT NULL,
+  `tridurl` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`osys`)
 ) ENGINE=InnoDB;
 
@@ -44,5 +45,10 @@ CREATE TABLE `trsecrets` (
   PRIMARY KEY (`trid`)
 ) ENGINE=InnoDB;
 
+CREATE TABLE `merchants` (
+  `id` varchar(60) NOT NULL,
+  `osys` varchar(30) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
 
 

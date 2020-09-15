@@ -42,6 +42,7 @@ type Config struct {
 	System           string
 	CallBackURI      string
 	CallBackHostPort string
+	TRIDcbURI        string
 	TLSCert          string
 	TLSKey           string
 	SignKey          string
@@ -57,6 +58,7 @@ type Config struct {
 type MDESapi struct {
 	ShutDown           func() error // adapter gracefull sutdown function
 	cbHandler          func(NotificationTokenData)
+	tridHandler        func(string, string)
 	oAuthSigner        *oauth.Signer
 	storedDecryptKeys  map[string]*rsa.PrivateKey //- to support multiple keys
 	storedEncryptKey   *rsa.PublicKey
@@ -84,11 +86,12 @@ type encryptedPayload struct {
 }
 
 // NewMDESapi creates new MDESapi adapter implementation.
-func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData)) (*MDESapi, error) {
+func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData), tridHandler func(string, string)) (*MDESapi, error) {
 
 	mAPI := &MDESapi{
-		mutex:     &sync.RWMutex{}, // RWmutex requered for KeyExchangeManager
-		cbHandler: cbHandler,
+		mutex:       &sync.RWMutex{}, // RWmutex requered for KeyExchangeManager
+		cbHandler:   cbHandler,
+		tridHandler: tridHandler,
 	}
 
 	var err error
@@ -129,9 +132,9 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData)) (*MDESapi, 
 	if conf.System == "SandBox" {
 		MDESenv = ""
 	}
-	//mAPI.urlNewTRID = fmt.Sprintf("https://%sapi.mastercard.com/customer-id-assignments%s", MDESsys, MDESenv)
+	mAPI.urlNewTRID = fmt.Sprintf("https://%sapi.mastercard.com/customer-id-assignments%s", MDESsys, MDESenv)
 
-	mAPI.urlNewTRID = fmt.Sprintf("https://%sapi.mastercard.com/requestTokenRequestorId%s", MDESsys, MDESenv)
+	// mAPI.urlNewTRID = fmt.Sprintf("https://%sapi.mastercard.com/requestTokenRequestorId%s", MDESsys, MDESenv)
 
 	// start CallBack service
 	server := http.Server{
@@ -160,44 +163,6 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData)) (*MDESapi, 
 	}()
 
 	return mAPI, nil
-}
-
-type callBackHandler struct {
-	cbFunc func([]byte) (string, error)
-	path   string
-}
-
-func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" || r.URL.Path != c.path {
-		log.Printf("ERROR: wrong metod/path: %s%s", r.Method, r.URL.Path)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Printf("ERROR: notification body reading error:%v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	id, err := c.cbFunc(body)
-	if err != nil {
-		log.Printf("ERROR: notification handling error: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	responce, _ := json.Marshal(struct {
-		ResponseHost string `json:"responseHost"`
-		ResponseID   string `json:"responseId"`
-	}{
-		ResponseHost: "assist.ru",
-		ResponseID:   id,
-	})
-
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(responce)
-
 }
 
 // request makes request with oAuth header by 'url' with 'payload'. It returns responce body and error
@@ -536,6 +501,55 @@ func (m MDESapi) GetAsset(assetID string) (*MediaContent, error) {
 	return &responceData.MediaContents[0], nil
 }
 
+// Call-back handling staff
+
+type callBackHandler struct {
+	cbFunc   func([]byte) (string, error)
+	path     string
+	tridFunc func([]byte) (string, error)
+	tridpath string
+}
+
+func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("ERROR: notification body reading error:%v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var rID string
+	switch r.Method + r.URL.Path {
+	case "POST" + c.path:
+		rID, err = c.cbFunc(body)
+	case "POST" + c.tridpath:
+		rID, err = c.tridFunc(body)
+	default:
+		log.Printf("ERROR: wrong metod/path: %s%s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if err != nil {
+		log.Printf("ERROR: TRID info handling error: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	responce, _ := json.Marshal(struct {
+		ResponseHost string `json:"responseHost"`
+		ResponseID   string `json:"responseId"`
+	}{
+		ResponseHost: "assist.ru",
+		ResponseID:   rID,
+	})
+
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(responce)
+	return
+}
+
 // notify is call-back handler
 func (m MDESapi) notify(payload []byte) (string, error) {
 	// unwrap the received data
@@ -580,6 +594,33 @@ func (m MDESapi) notify(payload []byte) (string, error) {
 		go m.cbHandler(t)
 	}
 	return reqData.RequestID, nil
+}
+
+func (m MDESapi) tridCB(payload []byte) (string, error) {
+
+	type tr struct {
+		EntityID         string
+		TokenRequestorID string
+	}
+	rData := struct {
+		ResponseHost    string
+		RequestID       string
+		TokenRequestors []tr
+	}{}
+
+	if err := json.Unmarshal(payload, &rData); err != nil {
+		return "", err
+	}
+
+	if len(rData.TokenRequestors) == 0 {
+		return rData.RequestID, errors.New("no data in the list of TRIDs")
+	}
+
+	for _, t := range rData.TokenRequestors {
+		go m.tridHandler(t.EntityID, t.TokenRequestorID)
+	}
+
+	return rData.RequestID, nil
 }
 
 // //GetToken is implementation of MDES SearchToken API call

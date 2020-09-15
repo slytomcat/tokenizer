@@ -25,7 +25,10 @@ func initDB() {
 func TestOutSysData(t *testing.T) {
 	initDB()
 
-	err := db.StoreOutSysInfo("A5", &OutSysInfo{"urlinit"})
+	err := db.StoreOutSysInfo("A5", &OutSysInfo{
+		CBURL:   "urlinit",
+		TRIDURL: "tridurl",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,10 +36,13 @@ func TestOutSysData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.CBURL != "urlinit" {
-		t.Fatal("uncorrect value")
+	if d.CBURL != "urlinit" || d.TRIDURL != "tridurl" {
+		t.Fatalf("uncorrect value: %+v", d)
 	}
-	err = db.StoreOutSysInfo("A5", &OutSysInfo{"urllater"})
+	err = db.StoreOutSysInfo("A5", &OutSysInfo{
+		CBURL:   "urlinit1",
+		TRIDURL: "tridurl1",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,8 +50,8 @@ func TestOutSysData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.CBURL != "urllater" {
-		t.Fatal("uncorrect value")
+	if d.CBURL != "urlinit1" || d.TRIDURL != "tridurl1" {
+		t.Fatalf("uncorrect value: %+v", d)
 	}
 
 }

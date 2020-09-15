@@ -86,7 +86,7 @@ func doMain(config *Config) {
 	tools.PanicIf(err)
 
 	// create MasterCard MDES protocol adapter instance
-	m, err = mdes.NewMDESapi(&config.MDES, mdesNotifyForfard)
+	m, err = mdes.NewMDESapi(&config.MDES, mdesNotifyForfard, tridNotifyForward)
 	tools.PanicIf(err)
 
 	// Initialize cache
@@ -374,9 +374,12 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 
 type cfghandler struct{}
 
-func (c cfghandler) SetOutSystem(oSys, cburl string) error {
-	return db.StoreOutSysInfo(oSys, &database.OutSysInfo{CBURL: cburl})
+func (c cfghandler) SetOutSystem(oSys, cburl, tridurl string) error {
+	return db.StoreOutSysInfo(oSys, &database.OutSysInfo{
+		CBURL: cburl,
+	})
 }
+
 func (c cfghandler) SetTRSecrets(trid, apikey string, signkey, decryptkey *rsa.PrivateKey, encryptkey *rsa.PublicKey) error {
 	return db.StoreTRSecrets(trid, &database.TRSecrets{
 		APIKey:     apikey,
@@ -387,6 +390,15 @@ func (c cfghandler) SetTRSecrets(trid, apikey string, signkey, decryptkey *rsa.P
 
 }
 
-func (c cfghandler) RegisterMCTRID(id, name string) error {
+func (c cfghandler) RegisterMCTRID(osys, id, name string) error {
+	// TO DO
+	// go store id : osys
 	return m.NewTRID(id, name)
+}
+
+func tridNotifyForward(id, trid string) {
+	// TO DO
+	// get from DB id : osys
+	// get from DB osys: tridurl
+	// put into Queue tridurl : (id, trid)
 }

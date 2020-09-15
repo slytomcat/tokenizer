@@ -69,18 +69,18 @@ func (db *DBConnect) StoreOutSysInfo(oSys string, oSysInfo *OutSysInfo) error {
 	return db.set(oSys, oSysInfo, 0)
 }
 
-// GetOutSysInfo - stores out system info
+// GetOutSysInfo - returns out system info
 func (db *DBConnect) GetOutSysInfo(oSys string) (*OutSysInfo, error) {
 	data := OutSysInfo{}
 	return &data, db.get(oSys, &data)
 }
 
-// StoreTRSecrets - stores out system info
+// StoreTRSecrets - stores TRID secrets
 func (db *DBConnect) StoreTRSecrets(trid string, trSecrets *TRSecrets) error {
 	return db.set(trid, trSecrets, 0)
 }
 
-// GetTRSecrets - stores out system info
+// GetTRSecrets - returns TRID secrets
 func (db *DBConnect) GetTRSecrets(trid string) (*TRSecrets, error) {
 	data := TRSecrets{}
 	return &data, db.get(trid, &data)
@@ -100,4 +100,15 @@ func (db *DBConnect) GetAsset(assetID string) (*Asset, error) {
 // Check pings the server to check the connection
 func (db *DBConnect) Check() error {
 	return db.r.Ping().Err()
+}
+
+// StoreMerchant - stores merchant info
+func (db *DBConnect) StoreMerchant(id string, mi *Merchant) error {
+	return db.set(id, mi, 0)
+}
+
+// GetMerchant - returns merchant info
+func (db *DBConnect) GetMerchant(id string) (*Merchant, error) {
+	data := Merchant{}
+	return &data, db.get(id, &data)
 }

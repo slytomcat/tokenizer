@@ -41,10 +41,16 @@ func TestMain(m *testing.M) {
 		keywfp{Key: "SandBoxKeys/key.p12", Fingerprint: "243e6992ea467f1cbb9973facfcc3bf17b5cd007"}, // for testing encryption a decryption
 	}
 
-	mdesAPI, err = NewMDESapi(&configData.MDES, func(n NotificationTokenData) {
-		log.Printf("Notification: %+v", n)
-		return
-	})
+	mdesAPI, err = NewMDESapi(
+		&configData.MDES,
+		func(n NotificationTokenData) {
+			log.Printf("Notification: %+v", n)
+			return
+		},
+		func(i, t string) {
+			log.Printf("TRID info: id: %s, TRID: %s", i, t)
+		},
+	)
 	tools.PanicIf(err)
 
 	cb = "http://" + configData.MDES.CallBackHostPort + configData.MDES.CallBackURI

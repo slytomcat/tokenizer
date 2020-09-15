@@ -21,7 +21,8 @@ type TokenData struct {
 
 // OutSysInfo - out system information
 type OutSysInfo struct {
-	CBURL string
+	CBURL   string
+	TRIDURL string
 	// EncryptKey *rsa.PublicKey  // Key for sensitive data encryption in responces to out system requests
 	// DecryptKey *rsa.PrivateKey // Key for sensitive data decryption in requests from out system
 }
@@ -42,6 +43,11 @@ type Asset struct {
 	// MobileInactivePicURL string
 }
 
+// Merchant is merchant ifo required for TRID API call-backs
+type Merchant struct {
+	OutSystem string
+}
+
 // Connector - database connection interface
 type Connector interface {
 	StoreTokenInfo(tur string, ti *TokenData) error
@@ -50,6 +56,8 @@ type Connector interface {
 	GetOutSysInfo(oSys string) (*OutSysInfo, error)
 	StoreTRSecrets(trid string, trSecrets *TRSecrets) error
 	GetTRSecrets(trid string) (*TRSecrets, error)
+	StoreMerchant(id string, mi *Merchant) error
+	GetMerchant(id string) (*Merchant, error)
 	StoreAsset(assetID string, asset *Asset) error
 	GetAsset(assetID string) (*Asset, error)
 	Check() error
