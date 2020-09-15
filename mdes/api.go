@@ -123,3 +123,14 @@ type CryptogramData struct {
 	De55Data              string
 	De48se43Data          string
 }
+
+// TokenRequestor - information for new TRID registration
+type TokenRequestor struct {
+	EntityID                                   string `json:"entityId"`
+	PaymentAppID                               string `json:"paymentAppId"`
+	ConsumerFacingEntityName                   string `json:"consumerFacingEntityName"`
+	DebitCreditIndicator                       string `json:"debitCreditIndicator"`
+	ProvidePaymentAccountReference             bool   `json:"providePaymentAccountReference"`
+	EnableTransactionIssuerResponseInformation bool   `json:"enableTransactionIssuerResponseInformation"`
+	WrappedEncryptionHashAlgorithm             string `json:"wrappedEncryptionHashAlgorithm"`
+}

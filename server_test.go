@@ -165,6 +165,18 @@ func TestConfigTRSecrets(t *testing.T) {
 	log.Println("Done waiting async storage")
 }
 
+func TestConfigNewTRID(t *testing.T) {
+	_, err := request(capiURL+"/capi/v1/mc/tridregister",
+		[]byte(`{"id":"739d27e5629d11e3949a0800200c9a66","name":"MERCHANT1"}`),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// wait for cache updates
+	time.Sleep(time.Second)
+	log.Println("Done waiting async storage")
+}
+
 func TestHealthCheck(t *testing.T) {
 	_, err := request(apiURL+"/api/v1/healthcheck", []byte{})
 	if err != nil {

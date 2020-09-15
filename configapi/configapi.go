@@ -13,6 +13,7 @@ import (
 // CfgAPI - configuration api handlers interface
 type CfgAPI interface {
 	SetOutSystem(oSys, cburl string) error
+	RegisterMCTRID(id, name string) error
 	SetTRSecrets(trid, apikey string, signkey, decryptkey *rsa.PrivateKey, encryptkey *rsa.PublicKey) error
 }
 
@@ -35,6 +36,8 @@ func (c Capi) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		c.addOutSystem(resp, req)
 	case "POST/capi/v1/addtrsecrets":
 		c.addTRSecrets(resp, req)
+	case "POST/capi/v1/mc/tridregister":
+		c.newTRID(resp, req)
 	default:
 		resp.WriteHeader(http.StatusBadRequest)
 	}
@@ -89,6 +92,26 @@ func (c *Capi) addOutSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+}
+func (c *Capi) newTRID(w http.ResponseWriter, r *http.Request) {
+
+	reqData := struct {
+		ID   string
+		Name string
+		// keys in []byte
+	}{}
+
+	if err := tools.ReadBodyToStruct(r.Body, &reqData); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	err := c.handler.RegisterMCTRID(reqData.ID, reqData.Name)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte{})
 }
 
 func (c *Capi) addTRSecrets(w http.ResponseWriter, r *http.Request) {

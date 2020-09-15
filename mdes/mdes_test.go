@@ -50,8 +50,11 @@ func TestMain(m *testing.M) {
 	cb = "http://" + configData.MDES.CallBackHostPort + configData.MDES.CallBackURI
 
 	er := m.Run()
+
+	// clearance
 	mdesAPI.ShutDown()
 	time.Sleep(time.Millisecond * 100)
+
 	os.Exit(er)
 }
 
@@ -312,4 +315,10 @@ func request(url string, payload []byte) ([]byte, error) {
 	log.Printf("    <<<cb<<<<    Response: %s\n%s\n", responce.Status, body)
 
 	return body, nil
+}
+func TestNewTRID(t *testing.T) {
+	err := mdesAPI.NewTRID("739d27e5629d11e3949a0800200c9a66", "MERCHANT1")
+	if err != nil {
+		t.Fatal(err)
+	}
 }

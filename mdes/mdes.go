@@ -55,6 +55,8 @@ type Config struct {
 
 // MDESapi TokenizerAPI implementation for MasterCard MDES Digital enabled API
 type MDESapi struct {
+	ShutDown           func() error // adapter gracefull sutdown function
+	cbHandler          func(NotificationTokenData)
 	oAuthSigner        *oauth.Signer
 	storedDecryptKeys  map[string]*rsa.PrivateKey //- to support multiple keys
 	storedEncryptKey   *rsa.PublicKey
@@ -67,10 +69,9 @@ type MDESapi struct {
 	urlGetAsset        string
 	urlSuspend         string
 	urlUnsuspend       string
+	urlNewTRID         string
 	// urlGetToken        string
 	// urlSearch          string
-	cbHandler func(NotificationTokenData)
-	ShutDown  func() error // adapter gracefull sutdown function
 }
 
 // encryptedPayload structure of encrypted payload of MDES API
@@ -123,6 +124,14 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData)) (*MDESapi, 
 	mAPI.urlUnsuspend = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/unsuspend", MDESsys, MDESenv)
 	// mAPI.urlGetToken = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/getToken", MDESsys, MDESenv)
 	// mAPI.urlSearch = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/searchTokens", MDESsys, MDESenv)
+
+	// tune MDESenv for TRID registration URLs
+	if conf.System == "SandBox" {
+		MDESenv = ""
+	}
+	//mAPI.urlNewTRID = fmt.Sprintf("https://%sapi.mastercard.com/customer-id-assignments%s", MDESsys, MDESenv)
+
+	mAPI.urlNewTRID = fmt.Sprintf("https://%sapi.mastercard.com/requestTokenRequestorId%s", MDESsys, MDESenv)
 
 	// start CallBack service
 	server := http.Server{
@@ -258,7 +267,7 @@ func (m MDESapi) encryptPayload(payload []byte) (*encryptedPayload, error) {
 	// get latest encryption keq and it's fingerprint
 	encryptKey, encryptKeyFP := m.encryptKey()
 
-	// encrypt the session key  !!! hash alg is fixed in this implementation
+	// encrypt the session key  !!! hash alg SHA512 is fixed in this implementation
 	encyptedKey, err := rsa.EncryptOAEP(sha512.New(), rand.Reader, encryptKey, sessionKey, nil)
 	if err != nil {
 		return nil, fmt.Errorf("seesion key encryption error: %w", err)

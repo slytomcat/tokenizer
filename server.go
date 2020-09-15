@@ -386,3 +386,7 @@ func (c cfghandler) SetTRSecrets(trid, apikey string, signkey, decryptkey *rsa.P
 	})
 
 }
+
+func (c cfghandler) RegisterMCTRID(id, name string) error {
+	return m.NewTRID(id, name)
+}
