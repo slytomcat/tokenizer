@@ -140,8 +140,10 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData), tridHandler
 	server := http.Server{
 		Addr: conf.CallBackHostPort,
 		Handler: callBackHandler{
-			cbFunc: mAPI.notify,
-			path:   conf.CallBackURI,
+			cbFunc:   mAPI.notify,
+			path:     conf.CallBackURI,
+			tridFunc: mAPI.tridCB,
+			tridpath: conf.TRIDcbURI,
 		},
 	}
 

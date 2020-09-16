@@ -6,7 +6,7 @@ GRANT SELECT, INSERT, UPDATE ON `tokenizer`.* TO `tokenizer`@`%`;
 
 USE `tokenizer`;
 
-DROP TABLE IF EXISTS `token`, `asset`, `osystem`, `trsecrets`;
+DROP TABLE IF EXISTS `token`, `asset`, `osystem`, `trsecrets`, `merchant`;
 
 CREATE TABLE `token` (
   `tur` varchar(60) NOT NULL,

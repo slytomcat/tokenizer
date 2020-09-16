@@ -143,7 +143,7 @@ func TestNotifyMC(t *testing.T) {
 
 func TestConfigOutSys(t *testing.T) {
 	_, err := request(capiURL+"/capi/v1/addoutsystem",
-		[]byte(`{"outsys":"A5","cburl":"http://s-t-c.tk/echo"}`),
+		[]byte(`{"outsys":"A5","cburl":"http://s-t-c.tk/echo","tridurl":"http://s-t-c.tk/echo"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -167,6 +167,18 @@ func TestConfigTRSecrets(t *testing.T) {
 
 func TestConfigNewTRID(t *testing.T) {
 	_, err := request(capiURL+"/capi/v1/mc/tridregister",
+		[]byte(`{"id":"739d27e5629d11e3949a0800200c9a66","name":"MERCHANT1"}`),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// wait for cache updates
+	time.Sleep(time.Second)
+	log.Println("Done waiting async storage")
+}
+
+func TestConfigTRIDCallBack(t *testing.T) {
+	_, err := request(cbURL+,
 		[]byte(`{"id":"739d27e5629d11e3949a0800200c9a66","name":"MERCHANT1"}`),
 	)
 	if err != nil {

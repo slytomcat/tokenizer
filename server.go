@@ -391,14 +391,36 @@ func (c cfghandler) SetTRSecrets(trid, apikey string, signkey, decryptkey *rsa.P
 }
 
 func (c cfghandler) RegisterMCTRID(osys, id, name string) error {
-	// TO DO
-	// go store id : osys
+	if err := db.StoreMerchant(id, &database.Merchant{OutSystem: osys}); err != nil {
+		return err
+	}
 	return m.NewTRID(id, name)
 }
 
 func tridNotifyForward(id, trid string) {
-	// TO DO
 	// get from DB id : osys
+	mi, err := db.GetMerchant(id)
+	if err != nil {
+		log.Printf("ERROR getting the MID from DB error: %v", err)
+	}
 	// get from DB osys: tridurl
+	osData, err := db.GetOutSysInfo(mi.OutSystem)
+	if err != nil {
+		log.Printf("ERROR getting the oSys from DB error: %v", err)
+	}
 	// put into Queue tridurl : (id, trid)
+	payload, _ := json.Marshal(struct {
+		ID   string
+		TRID string
+	}{
+		ID:   id,
+		TRID: trid,
+	})
+	err = q.Send(queue.QData{
+		URL:     osData.TRIDURL,
+		Payload: string(payload),
+	})
+	if err != nil {
+		log.Printf("sending message to call-back queue error: %v", err)
+	}
 }
