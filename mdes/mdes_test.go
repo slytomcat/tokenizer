@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	mdesAPI *MDESapi
-	cb      string
+	mdesAPI    *MDESapi
+	cb, tridcb string
 )
 
 func TestMain(m *testing.M) {
@@ -44,16 +44,17 @@ func TestMain(m *testing.M) {
 	mdesAPI, err = NewMDESapi(
 		&configData.MDES,
 		func(n NotificationTokenData) {
-			log.Printf("Notification: %+v", n)
-			return
+			log.Printf("Token Update Notification: %+v", n)
 		},
 		func(i, t string) {
-			log.Printf("TRID info: id: %s, TRID: %s", i, t)
+			log.Printf("TRID API Notification: id: %s, TRID: %s", i, t)
 		},
 	)
 	tools.PanicIf(err)
 
 	cb = "http://" + configData.MDES.CallBackHostPort + configData.MDES.CallBackURI
+
+	tridcb = "http://" + configData.MDES.CallBackHostPort + configData.MDES.TRIDcbURI
 
 	er := m.Run()
 
@@ -324,6 +325,20 @@ func request(url string, payload []byte) ([]byte, error) {
 }
 func TestNewTRID(t *testing.T) {
 	err := mdesAPI.NewTRID("739d27e5629d11e3949a0800200c9a66", "MERCHANT1")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTRIDnotifyInternal(t *testing.T) {
+	_, err := mdesAPI.tridCB([]byte(`{"requestID":"1234","tokenRequestors":[{"entityId":"123456","TokenRequestorID":"098765"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestTRIDnotifyRequest(t *testing.T) {
+	_, err := request(tridcb, []byte(`{"requestID":"1234","tokenRequestors":[{"entityId":"123456","TokenRequestorID":"098765"}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}

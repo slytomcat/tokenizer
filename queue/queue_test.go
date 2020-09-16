@@ -20,6 +20,12 @@ func TestNew(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// clearance
+	req, _ := q.q.PurgeQueueRequest(&sqs.PurgeQueueInput{
+		QueueUrl: aws.String(q.queueURL),
+	})
+	req.Send()
+
 	tdata1 := QData{
 		URL:     "some url",
 		Payload: "some payload",
@@ -60,7 +66,7 @@ func TestNew(t *testing.T) {
 	t.Logf("expected error: %v", err)
 
 	// clearance
-	req, _ := q.q.PurgeQueueRequest(&sqs.PurgeQueueInput{
+	req, _ = q.q.PurgeQueueRequest(&sqs.PurgeQueueInput{
 		QueueUrl: aws.String(q.queueURL),
 	})
 	req.Send()

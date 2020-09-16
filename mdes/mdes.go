@@ -534,7 +534,7 @@ func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		log.Printf("ERROR: TRID info handling error: %v", err)
+		log.Printf("ERROR: Call-back handling error: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

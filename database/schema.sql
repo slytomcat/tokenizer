@@ -45,7 +45,7 @@ CREATE TABLE `trsecrets` (
   PRIMARY KEY (`trid`)
 ) ENGINE=InnoDB;
 
-CREATE TABLE `merchants` (
+CREATE TABLE `merchant` (
   `id` varchar(60) NOT NULL,
   `osys` varchar(30) DEFAULT NULL,
   PRIMARY KEY (`id`)

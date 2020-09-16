@@ -24,10 +24,11 @@ import (
 )
 
 var (
-	outputRe *regexp.Regexp
-	cbURL    string // URL (full) for Call-Back request
-	apiURL   string // URL (partial) for API requests
-	capiURL  string // URL (partial) for Config API requests
+	outputRe  *regexp.Regexp
+	cbURL     string // URL (full) for MDES API Call-Back request
+	tridCBURL string // URL (full) for TRID API Call-Back request
+	apiURL    string // URL (partial) for API requests
+	capiURL   string // URL (partial) for Config API requests
 )
 
 func TestMain(m *testing.M) {
@@ -37,6 +38,7 @@ func TestMain(m *testing.M) {
 	cnf := Config{}
 	err := tools.ReadJSON("config.json", &cnf)
 	cbURL = "http://" + cnf.MDES.CallBackHostPort + cnf.MDES.CallBackURI
+	tridCBURL = "http://" + cnf.MDES.CallBackHostPort + cnf.MDES.TRIDcbURI
 	apiURL = "http://" + cnf.API.HostPort
 	capiURL = "http://" + cnf.CfgAPI.HostPort
 
@@ -143,7 +145,7 @@ func TestNotifyMC(t *testing.T) {
 
 func TestConfigOutSys(t *testing.T) {
 	_, err := request(capiURL+"/capi/v1/addoutsystem",
-		[]byte(`{"outsys":"A5","cburl":"http://s-t-c.tk/echo","tridurl":"http://s-t-c.tk/echo"}`),
+		[]byte(`{"outsys":"A5","cburl":"http://s-t-c.tk:8080/echo","tridurl":"http://s-t-c.tk:8080/echo"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -167,7 +169,7 @@ func TestConfigTRSecrets(t *testing.T) {
 
 func TestConfigNewTRID(t *testing.T) {
 	_, err := request(capiURL+"/capi/v1/mc/tridregister",
-		[]byte(`{"id":"739d27e5629d11e3949a0800200c9a66","name":"MERCHANT1"}`),
+		[]byte(`{"outSys":"A5","id":"739d27e5629d11e3949a0800200c9a66","name":"MERCHANT1"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -178,14 +180,14 @@ func TestConfigNewTRID(t *testing.T) {
 }
 
 func TestConfigTRIDCallBack(t *testing.T) {
-	_, err := request(cbURL+,
-		[]byte(`{"id":"739d27e5629d11e3949a0800200c9a66","name":"MERCHANT1"}`),
+	_, err := request(tridCBURL,
+		[]byte(`{"requestID":"1234","tokenRequestors":[{"entityId":"739d27e5629d11e3949a0800200c9a66","TokenRequestorID":"098765"}]}`),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// wait for cache updates
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 3)
 	log.Println("Done waiting async storage")
 }
 

@@ -28,7 +28,6 @@ func New(q *queue.Queue, interval int) chan bool {
 
 	// make ticker
 	tick := time.NewTicker(time.Second * time.Duration(interval))
-	defer tick.Stop()
 
 	// make quit request chanel
 	quit := make(chan bool, 1)
@@ -37,6 +36,7 @@ func New(q *queue.Queue, interval int) chan bool {
 	go func() {
 		log.Println("Starting Call-Back handler")
 		defer log.Println("Call-Back handler stopped")
+		defer tick.Stop()
 		for {
 			select {
 			case <-exit:
@@ -48,6 +48,7 @@ func New(q *queue.Queue, interval int) chan bool {
 					// handle all call-backs from queue
 					data, receipt, err := q.Receive()
 					if err != nil {
+						log.Printf("Queue receive error: %v", err)
 						break
 					}
 					go send(q, data, receipt)

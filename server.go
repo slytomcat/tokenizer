@@ -376,7 +376,8 @@ type cfghandler struct{}
 
 func (c cfghandler) SetOutSystem(oSys, cburl, tridurl string) error {
 	return db.StoreOutSysInfo(oSys, &database.OutSysInfo{
-		CBURL: cburl,
+		CBURL:   cburl,
+		TRIDURL: tridurl,
 	})
 }
 
@@ -394,6 +395,7 @@ func (c cfghandler) RegisterMCTRID(osys, id, name string) error {
 	if err := db.StoreMerchant(id, &database.Merchant{OutSystem: osys}); err != nil {
 		return err
 	}
+	log.Printf("INFO: merchant info stored: %s, %s", id, osys)
 	return m.NewTRID(id, name)
 }
 
