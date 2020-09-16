@@ -26,7 +26,6 @@ import (
 	"log"
 	"net/http"
 	"regexp"
-	"sync"
 
 	oauth "github.com/mastercard/oauth1-signer-go"
 	tools "github.com/slytomcat/tokenizer/tools"
@@ -63,7 +62,6 @@ type MDESapi struct {
 	storedDecryptKeys  map[string]*rsa.PrivateKey //- to support multiple keys
 	storedEncryptKey   *rsa.PublicKey
 	storedEncryptKeyFP string
-	mutex              *sync.RWMutex  // RWmutex requered for KeyExchangeManager
 	ourputRe           *regexp.Regexp // compiled regexp for output filtration
 	urlTokenize        string
 	urlTransact        string
@@ -89,7 +87,6 @@ type encryptedPayload struct {
 func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData), tridHandler func(string, string)) (*MDESapi, error) {
 
 	mAPI := &MDESapi{
-		mutex:       &sync.RWMutex{}, // RWmutex requered for KeyExchangeManager
 		cbHandler:   cbHandler,
 		tridHandler: tridHandler,
 	}

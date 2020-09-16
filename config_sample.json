@@ -41,13 +41,16 @@
     "MDES":
         {
             "System":"<one of: SandBox|MTF|PROD>",
-            "CallBackURI":"<Endpoint cofigured for receivig notifications from MDES site>",
+            "CallBackURI":"<Endpoint cofigured for receivig notifications from MDES API>",
+            "TRIDcbURI":"<Endpoint cofigured for receivig notifications from TRID API>",
             "CallBackHostPort":"<host and port to listen for call backs>",
             "TLSCert":"<TLS certificate for call back listener, if empty the listener starts without TLS in debug mode>",
 	        "TLSKey":"<TLS key for call back listener>",
             "SignKey":"<path to signing key p12 safe>",
+            "SignKeyPassw":"<path to password for signig key safe>",
             "EcryptKey":"<path to certificate with key for encryption >",
             "EncrypKeyFp":"<Fingerprint of encryption key>",
+            "DecryptKeyPassw":"<path to password for decryption key safe>",
             "DecryptKeys": [{"Key": "<path to decryption key>", "Fingerprint":"<decryption key fingerprint>"}],
             "APIKey":"<consumer key from MC developer portal project>"
         }

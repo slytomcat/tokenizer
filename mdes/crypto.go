@@ -96,14 +96,10 @@ func encryptAESCBC(key, plainText []byte) ([]byte, []byte, error) {
 }
 
 func (m MDESapi) signer() *oauth.Signer {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
 	return m.oAuthSigner
 }
 
 func (m MDESapi) decrypKey(keyFP string) *rsa.PrivateKey {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
 	// select key by fingerprint (there must be 1+ keys for decryption)
 	decryptKey, ok := m.storedDecryptKeys[keyFP]
 	if !ok {
@@ -113,8 +109,6 @@ func (m MDESapi) decrypKey(keyFP string) *rsa.PrivateKey {
 }
 
 func (m MDESapi) encryptKey() (*rsa.PublicKey, string) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
 	return m.storedEncryptKey, m.storedEncryptKeyFP
 }
 
