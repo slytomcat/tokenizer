@@ -23,19 +23,6 @@ type CardAccountData struct {
 	SecurityCode  string `json:"securityCode"`
 }
 
-// MCTokenInfo MC API
-// type MCTokenInfo struct {
-// 	TokenUniqueReference string `json:"tokenUniqueReference"`
-// 	TokenPanSuffix       string `json:"tokenPanSuffix"`
-// 	TokenExpiry          string `json:"tokenExpiry"`
-// 	PanUniqueReference   string `json:"panUniqueReference"`
-// 	AccountPanSuffix     string `json:"accountPanSuffix"`
-// 	AccountPanExpiry     string `json:"accountPanExpiry"`
-// 	ProductCategory      string `json:"productCategory"`
-// 	DsrpCapable          bool   `json:"dsrpCapable"`
-// 	TokenAssuranceLevel  int    `json:"tokenAssuranceLevel"`
-//}
-
 // TokenInfo MC API struct
 type TokenInfo struct {
 	TokenUniqueReference    string
@@ -82,7 +69,7 @@ type ProductConfig struct {
 	// IconAssetID                   string
 	// ForegroundColor               string
 	CardBackgroundCombinedAssetID string
-	IsCoBranded                   bool
+	IsCoBranded                   string
 	CoBrandName                   string
 	IssuerName                    string
 	ShortDescription              string

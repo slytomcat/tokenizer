@@ -121,7 +121,7 @@ func doMain(config *Config) {
 type handler struct{}
 
 // Tokenize make token from card. It returns TUR and it's status
-func (h handler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (string, string, error) {
+func (handler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (string, string, error) {
 	if len(exp) != 4 {
 		return "", "", errors.New("wrong length of exp (must be 4)")
 	}
@@ -256,7 +256,7 @@ func storeAsset(typ, assetID string) (string, error) {
 }
 
 // Delete deletes tokens ad return the current tokens statuses
-func (h handler) Manage(method, typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
+func (handler) Manage(method, typ string, tokens []string, caused, reason string) ([]api.TokenStatus, error) {
 	switch typ {
 	case "MC":
 		tokenStatuses, err := m.Manage(method, tokens, caused, reason)
@@ -281,7 +281,7 @@ func (h handler) Manage(method, typ string, tokens []string, caused, reason stri
 }
 
 // Transact - returns the token DPAN and cryptogramms for payment by TUR
-func (h handler) Transact(typ, tur string) (string, string, string, error) {
+func (handler) Transact(typ, tur string) (string, string, string, error) {
 	switch typ {
 	case "MC":
 
@@ -296,6 +296,14 @@ func (h handler) Transact(typ, tur string) (string, string, string, error) {
 	default:
 		return "", "", "", errors.New("unsupported card type")
 	}
+}
+
+func (handler) GetToken(osys, trid, tur string) ([]api.TokenStatus, error) {
+	return nil, nil
+}
+
+func (handler) SearchToken(osys, trid, ctype, pan, exp, cvc, source string) ([]api.TokenStatus, error) {
+	return nil, nil
 }
 
 // HealthCheck - health check request handler
@@ -329,8 +337,8 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 	update(&tData.AssetURL, assetURL)
 	update(&tData.Last4, t.TokenInfo.AccountPanSuffix)
 	update(&tData.Status, t.Status)
-	if t.ProductConfig.IsCoBranded != false && tData.Cobranded != t.ProductConfig.IsCoBranded {
-		tData.Cobranded = t.ProductConfig.IsCoBranded
+	if t.ProductConfig.IsCoBranded != "" && tData.Cobranded != (t.ProductConfig.IsCoBranded == "true") {
+		tData.Cobranded = t.ProductConfig.IsCoBranded == "true"
 		*updated = true
 	}
 	update(&tData.CobrandName, t.ProductConfig.CoBrandName)
@@ -374,14 +382,14 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 
 type cfghandler struct{}
 
-func (c cfghandler) SetOutSystem(oSys, cburl, tridurl string) error {
+func (cfghandler) SetOutSystem(oSys, cburl, tridurl string) error {
 	return db.StoreOutSysInfo(oSys, &database.OutSysInfo{
 		CBURL:   cburl,
 		TRIDURL: tridurl,
 	})
 }
 
-func (c cfghandler) SetTRSecrets(trid, apikey string, signkey, decryptkey *rsa.PrivateKey, encryptkey *rsa.PublicKey) error {
+func (cfghandler) SetTRSecrets(trid, apikey string, signkey, decryptkey *rsa.PrivateKey, encryptkey *rsa.PublicKey) error {
 	return db.StoreTRSecrets(trid, &database.TRSecrets{
 		APIKey:     apikey,
 		SingKey:    signkey,
@@ -391,7 +399,7 @@ func (c cfghandler) SetTRSecrets(trid, apikey string, signkey, decryptkey *rsa.P
 
 }
 
-func (c cfghandler) RegisterMCTRID(osys, id, name string) error {
+func (cfghandler) RegisterMCTRID(osys, id, name string) error {
 	if err := db.StoreMerchant(id, &database.Merchant{OutSystem: osys}); err != nil {
 		return err
 	}

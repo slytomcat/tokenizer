@@ -7,7 +7,7 @@ func (m MDESapi) NewTRID(id, name string) error {
 
 	tokenRequestor := TokenRequestor{
 		EntityID:                                   id,
-		PaymentAppID:                               "M4MCLOUDDSRP",
+		PaymentAppID:                               "M4MCLOUDDSRP", // const
 		ConsumerFacingEntityName:                   name,
 		DebitCreditIndicator:                       "BOTH",
 		ProvidePaymentAccountReference:             true,

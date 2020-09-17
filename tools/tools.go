@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// DEBUG is the flag that allove to output debugging information. It should be disabled in PROD environment
+// DEBUG is the flag that allow to output debugging information. It should be disabled in PROD environment
 var (
 	DEBUG = debug == "y"
 	debug = "y" // cange it via ldflags to disable debugging in PROD (see ../build_prod.bash)

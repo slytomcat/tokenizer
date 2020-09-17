@@ -34,6 +34,11 @@ func NewDB(conf *Config) (Connector, error) {
 	return DB, nil
 }
 
+// Check pings the server to check the connection
+func (db *DBConnect) Check() error {
+	return db.r.Ping().Err()
+}
+
 // set sets the value for the key with the ttl
 func (db *DBConnect) set(key string, value interface{}, ttl time.Duration) error {
 	data, _ := json.Marshal(value)
@@ -95,11 +100,6 @@ func (db *DBConnect) StoreAsset(assetID string, asset *Asset) error {
 func (db *DBConnect) GetAsset(assetID string) (*Asset, error) {
 	data := Asset{}
 	return &data, db.get(assetID, &data)
-}
-
-// Check pings the server to check the connection
-func (db *DBConnect) Check() error {
-	return db.r.Ping().Err()
 }
 
 // StoreMerchant - stores merchant info

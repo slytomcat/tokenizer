@@ -70,8 +70,8 @@ type MDESapi struct {
 	urlSuspend         string
 	urlUnsuspend       string
 	urlNewTRID         string
-	// urlGetToken        string
-	// urlSearch          string
+	urlGetToken        string
+	urlSearch          string
 }
 
 // encryptedPayload structure of encrypted payload of MDES API
@@ -116,22 +116,18 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData), tridHandler
 		return nil, errors.New("wrong system type")
 	}
 
+	// MDES API request URLs
 	mAPI.urlTokenize = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/tokenize", MDESsys, MDESenv)
 	mAPI.urlTransact = fmt.Sprintf("https://%sapi.mastercard.com/mdes/remotetransaction/%s1/0/transact", MDESsys, MDESenv)
 	mAPI.urlDelete = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/delete", MDESsys, MDESenv)
 	mAPI.urlGetAsset = fmt.Sprintf("https://%sapi.mastercard.com/mdes/assets/%s1/0/asset/", MDESsys, MDESenv)
 	mAPI.urlSuspend = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/suspend", MDESsys, MDESenv)
 	mAPI.urlUnsuspend = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/unsuspend", MDESsys, MDESenv)
-	// mAPI.urlGetToken = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/getToken", MDESsys, MDESenv)
-	// mAPI.urlSearch = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/searchTokens", MDESsys, MDESenv)
+	mAPI.urlGetToken = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/getToken", MDESsys, MDESenv)
+	mAPI.urlSearch = fmt.Sprintf("https://%sapi.mastercard.com/mdes/digitization/%s1/0/searchTokens", MDESsys, MDESenv)
 
-	// tune MDESenv for TRID registration URLs
-	if conf.System == "SandBox" {
-		MDESenv = ""
-	}
-	mAPI.urlNewTRID = fmt.Sprintf("https://%sapi.mastercard.com/customer-id-assignments%s", MDESsys, MDESenv)
-
-	// mAPI.urlNewTRID = fmt.Sprintf("https://%sapi.mastercard.com/requestTokenRequestorId%s", MDESsys, MDESenv)
+	// TRID API request URL
+	mAPI.urlNewTRID = fmt.Sprintf("https://%sapi.mastercard.com/customerIdAssignment/%stridManagement/requestTokenRequestorId", MDESsys, MDESenv)
 
 	// start CallBack service
 	server := http.Server{
@@ -383,7 +379,7 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 	// Falsificate assetID
 	responseStruct.TokenInfo.BrandAssetID = "3789637f-32a1-4810-a138-4bf34501c509"
 	// REMOVE IT BY MOVING TO MTF|PROD ! ! !
-	responseStruct.TokenInfo.IsCoBranded = responseStruct.ProductConfig.IsCoBranded
+	responseStruct.TokenInfo.IsCoBranded = responseStruct.ProductConfig.IsCoBranded == "true"
 	responseStruct.TokenInfo.CoBrandName = responseStruct.ProductConfig.CoBrandName
 	responseStruct.TokenInfo.IssuerName = responseStruct.ProductConfig.IssuerName
 
@@ -622,169 +618,173 @@ func (m MDESapi) tridCB(payload []byte) (string, error) {
 	return rData.RequestID, nil
 }
 
-// //GetToken is implementation of MDES SearchToken API call
-// func (m MDESapi) GetToken(RequestorID, tokenURef string) (*TokenInfo, error) {
+//GetToken is implementation of MDES SearchToken API call
+func (m MDESapi) GetToken(rtid, tur string) (*TokenInfo, error) {
 
-// 	// TO DO: generate random ID
-// 	reqID := "123456"
-// 	respHost := "assist.ru"
+	// TO DO: generate random ID
+	reqID := "123456"
+	respHost := "assist.ru"
 
-// 	payload, _ := json.Marshal(struct {
-// 		RequestID    string `json:"requestId"`
-// 		ResponseHost string `json:"responseHost"`
-// 		//TokenRequestorID     string `json:"tokenRequestorId"`
-// 		TokenUniqueReference string `json:"tokenUniqueReference"`
-// 		PaymentAppInstanceID string `json:"paymentAppInstanceId"`
-// 		IincludeTokenDetail  string `json:"includeTokenDetail"`
-// 	}{
-// 		RequestID:    reqID,
-// 		ResponseHost: respHost,
-// 		//TokenRequestorID:     RequestorID,
-// 		TokenUniqueReference: tokenURef,
-// 		PaymentAppInstanceID: "123456789",
-// 		IincludeTokenDetail:  "true",
-// 	})
+	payload, _ := json.Marshal(struct {
+		RequestID    string `json:"requestId"`
+		ResponseHost string `json:"responseHost"`
+		//TokenRequestorID     string `json:"tokenRequestorId"`
+		TokenUniqueReference string `json:"tokenUniqueReference"`
+		PaymentAppInstanceID string `json:"paymentAppInstanceId"`
+		IincludeTokenDetail  string `json:"includeTokenDetail"`
+	}{
+		RequestID:    reqID,
+		ResponseHost: respHost,
+		//TokenRequestorID:     trid,
+		TokenUniqueReference: tur,
+		PaymentAppInstanceID: "123456789",
+		IincludeTokenDetail:  "true",
+	})
 
-// 	response, err := m.request("POST", m.urlGetToken, payload)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	responseStruct := struct {
-// 		Token struct {
-// 			MCTokenStatus
-// 			ProductConfig MCProductConfig
-// 			TokenInfo     MCTokenInfo
-// 		}
-// 		TokenDetail encryptedPayload
-// 	}{}
+	response, err := m.request("POST", m.urlGetToken, payload)
+	if err != nil {
+		return nil, err
+	}
+	responseStruct := struct {
+		Token struct {
+			TokenStatus
+			ProductConfig ProductConfig
+			TokenInfo     TokenInfo
+		}
+		TokenDetail encryptedPayload
+	}{}
 
-// 	if err := json.Unmarshal(response, &responseStruct); err != nil {
-// 		return nil, err
-// 	}
+	if err := json.Unmarshal(response, &responseStruct); err != nil {
+		return nil, err
+	}
 
-// 	decrypted, err := m.decryptPayload(&responseStruct.TokenDetail)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	decrypted, err := m.decryptPayload(&responseStruct.TokenDetail)
+	if err != nil {
+		return nil, err
+	}
 
-// 	// >>> remove in PROD env
-// 	log.Printf("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
-// 	// <<< remove in PROD env
+	// >>> remove in PROD env
+	log.Printf("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
+	// <<< remove in PROD env
 
-// 	tokenDetail := struct {
-// 		TokenNumber             string
-// 		ExpiryMonth             string
-// 		paymentAccountReference string
-// 		dataValidUntilTimestamp string
-// 		PaymentAccountReference string
-// 	}{}
+	tokenDetail := struct {
+		TokenNumber             string
+		ExpiryMonth             string
+		paymentAccountReference string
+		dataValidUntilTimestamp string
+		PaymentAccountReference string
+	}{}
 
-// 	err = json.Unmarshal(decrypted, &tokenDetail)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	err = json.Unmarshal(decrypted, &tokenDetail)
+	if err != nil {
+		return nil, err
+	}
 
-// 	return &TokenInfo{
-// 		TokenUniqueReference:    responseStruct.Token.TokenUniqueReference,
-// 		TokenPanSuffix:          responseStruct.Token.TokenInfo.TokenPanSuffix,
-// 		TokenExpiry:             responseStruct.Token.TokenInfo.TokenExpiry,
-// 		PanUniqueReference:      responseStruct.Token.TokenInfo.PanUniqueReference,
-// 		PanSuffix:               responseStruct.Token.TokenInfo.AccountPanSuffix,
-// 		PanExpiry:               responseStruct.Token.TokenInfo.AccountPanExpiry,
-// 		BrandAssetID:            responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID,
-// 		ProductCategory:         responseStruct.Token.TokenInfo.ProductCategory,
-// 		PaymentAccountReference: tokenDetail.PaymentAccountReference,
-// 	}, nil
-// }
+	return &TokenInfo{
+		TokenUniqueReference:    responseStruct.Token.TokenUniqueReference,
+		TokenPanSuffix:          responseStruct.Token.TokenInfo.TokenPanSuffix,
+		TokenExpiry:             responseStruct.Token.TokenInfo.TokenExpiry,
+		PanUniqueReference:      responseStruct.Token.TokenInfo.PanUniqueReference,
+		AccountPanSuffix:        responseStruct.Token.TokenInfo.AccountPanSuffix,
+		AccountPanExpiry:        responseStruct.Token.TokenInfo.AccountPanExpiry,
+		BrandAssetID:            responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID,
+		ProductCategory:         responseStruct.Token.TokenInfo.ProductCategory,
+		PaymentAccountReference: tokenDetail.PaymentAccountReference,
+		TokenAssuranceLevel:     responseStruct.Token.TokenInfo.TokenAssuranceLevel,
+		IsCoBranded:             responseStruct.Token.ProductConfig.IsCoBranded == "true",
+		CoBrandName:             responseStruct.Token.ProductConfig.CoBrandName,
+		IssuerName:              responseStruct.Token.ProductConfig.IssuerName,
+	}, nil
+}
 
-// // Search is implementation of MDES SearchToken API call
-// func (m MDESapi) Search(RequestorID, tokenURef, panURef string, cardData CardAccountData) ([]MCTokenStatus, error) {
+// Search is implementation of MDES SearchToken API call
+func (m MDESapi) Search(trid, tur, panURef string, cardData CardAccountData) ([]TokenStatus, error) {
 
-// 	// TO DO: generate random ID
-// 	reqID := "123456"
-// 	respHost := "assist.ru"
-// 	payload := []byte{}
-// 	switch {
-// 	case tokenURef != "":
-// 		type td struct {
-// 			TokenUniqueReference string `json:"tokenUniqueReference"`
-// 		}
-// 		payload, _ = json.Marshal(struct {
-// 			RequestID          string `json:"requestId"`
-// 			ResponseHost       string `json:"responseHost"`
-// 			TokenRequestorID   string `json:"tokenRequestorId"`
-// 			FundingAccountInfo td     `json:"fundingAccountInfo"`
-// 		}{
-// 			RequestID:        reqID,
-// 			ResponseHost:     respHost,
-// 			TokenRequestorID: RequestorID,
-// 			FundingAccountInfo: td{
-// 				TokenUniqueReference: tokenURef,
-// 			},
-// 		})
-// 	case panURef != "":
-// 		type td struct {
-// 			PanUniqueReference string `json:"panUniqueReference"`
-// 		}
-// 		payload, _ = json.Marshal(struct {
-// 			RequestID          string `json:"requestId"`
-// 			ResponseHost       string `json:"responseHost"`
-// 			TokenRequestorID   string `json:"tokenRequestorId"`
-// 			FundingAccountInfo td     `json:"fundingAccountInfo"`
-// 		}{
-// 			RequestID:        reqID,
-// 			ResponseHost:     respHost,
-// 			TokenRequestorID: RequestorID,
-// 			FundingAccountInfo: td{
-// 				PanUniqueReference: panURef,
-// 			},
-// 		})
-// 	case cardData.AccountNumber != "":
+	// TO DO: generate random ID
+	reqID := "123456"
+	respHost := "assist.ru"
+	payload := []byte{}
+	switch {
+	case tur != "":
+		type td struct {
+			TokenUniqueReference string `json:"tokenUniqueReference"`
+		}
+		payload, _ = json.Marshal(struct {
+			RequestID          string `json:"requestId"`
+			ResponseHost       string `json:"responseHost"`
+			TokenRequestorID   string `json:"tokenRequestorId"`
+			FundingAccountInfo td     `json:"fundingAccountInfo"`
+		}{
+			RequestID:        reqID,
+			ResponseHost:     respHost,
+			TokenRequestorID: trid,
+			FundingAccountInfo: td{
+				TokenUniqueReference: tur,
+			},
+		})
+	case panURef != "":
+		type td struct {
+			PanUniqueReference string `json:"panUniqueReference"`
+		}
+		payload, _ = json.Marshal(struct {
+			RequestID          string `json:"requestId"`
+			ResponseHost       string `json:"responseHost"`
+			TokenRequestorID   string `json:"tokenRequestorId"`
+			FundingAccountInfo td     `json:"fundingAccountInfo"`
+		}{
+			RequestID:        reqID,
+			ResponseHost:     respHost,
+			TokenRequestorID: trid,
+			FundingAccountInfo: td{
+				PanUniqueReference: panURef,
+			},
+		})
+	case cardData.AccountNumber != "":
 
-// 		payloadToEncrypt, _ := json.Marshal(struct {
-// 			CardAccountData CardAccountData `json:"cardAccountData"`
-// 		}{
-// 			cardData,
-// 		})
+		payloadToEncrypt, _ := json.Marshal(struct {
+			CardAccountData CardAccountData `json:"cardAccountData"`
+		}{
+			cardData,
+		})
 
-// 		encrPayload, err := m.encryptPayload(payloadToEncrypt)
-// 		if err != nil {
-// 			return nil, err
-// 		}
+		encrPayload, err := m.encryptPayload(payloadToEncrypt)
+		if err != nil {
+			return nil, err
+		}
 
-// 		type td struct {
-// 			EncryptedPayload encryptedPayload `json:"encryptedPayload"`
-// 		}
+		type td struct {
+			EncryptedPayload encryptedPayload `json:"encryptedPayload"`
+		}
 
-// 		payload, _ = json.Marshal(struct {
-// 			RequestID          string `json:"requestId"`
-// 			ResponseHost       string `json:"responseHost"`
-// 			TokenRequestorID   string `json:"tokenRequestorId"`
-// 			FundingAccountInfo td     `json:"fundingAccountInfo"`
-// 		}{
-// 			RequestID:        reqID,
-// 			ResponseHost:     respHost,
-// 			TokenRequestorID: RequestorID,
-// 			FundingAccountInfo: td{
-// 				EncryptedPayload: *encrPayload,
-// 			},
-// 		})
-// 	default:
-// 		return nil, errors.New("incorrect request parameters")
-// 	}
+		payload, _ = json.Marshal(struct {
+			RequestID          string `json:"requestId"`
+			ResponseHost       string `json:"responseHost"`
+			TokenRequestorID   string `json:"tokenRequestorId"`
+			FundingAccountInfo td     `json:"fundingAccountInfo"`
+		}{
+			RequestID:        reqID,
+			ResponseHost:     respHost,
+			TokenRequestorID: trid,
+			FundingAccountInfo: td{
+				EncryptedPayload: *encrPayload,
+			},
+		})
+	default:
+		return nil, errors.New("incorrect request parameters")
+	}
 
-// 	response, err := m.request("POST", m.urlSearch, payload)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	response, err := m.request("POST", m.urlSearch, payload)
+	if err != nil {
+		return nil, err
+	}
 
-// 	responseData := struct {
-// 		Tokens []MCTokenStatus
-// 	}{}
+	responseData := struct {
+		Tokens []TokenStatus
+	}{}
 
-// 	if err := json.Unmarshal(response, &responseData); err != nil {
-// 		return nil, err
-// 	}
+	if err := json.Unmarshal(response, &responseData); err != nil {
+		return nil, err
+	}
 
-// 	return responseData.Tokens, nil
-// }
+	return responseData.Tokens, nil
+}

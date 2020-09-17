@@ -27,9 +27,11 @@ type TokenStatus struct {
 
 // PGAPI - payment gate API intreface
 type PGAPI interface {
-	Tokenize(string, string, string, string, string, string, string) (string, string, error)
-	Manage(string, string, []string, string, string) ([]TokenStatus, error)
-	Transact(string, string) (string, string, string, error)
+	Tokenize(osys, trid, ctype, pan, exp, cvc, source string) (string, string, error)
+	Manage(method, ctype string, turs []string, causedBy, reason string) ([]TokenStatus, error)
+	Transact(ctype, tur string) (string, string, string, error)
+	GetToken(osys, trid, tur string) ([]TokenStatus, error)
+	SearchToken(osys, trid, ctype, pan, exp, cvc, source string) ([]TokenStatus, error)
 	HealthCheck() error
 }
 
@@ -52,6 +54,10 @@ func (h Handler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		h.unsuspendHandler(resp, req)
 	case "POST/api/v1/transact":
 		h.transactHandler(resp, req)
+	case "POST/api/v1/gettoken":
+		h.gettokenHandler(resp, req)
+	case "POST/api/v1/search":
+		h.searchHandler(resp, req)
 	case "POST/api/v1/healthcheck":
 		h.healthCheck(resp, req)
 	default:
@@ -194,7 +200,7 @@ func (h Handler) deleteHandler(w http.ResponseWriter, req *http.Request) {
 	h.handle("D", w, req)
 }
 
-func (h Handler) handle(t string, w http.ResponseWriter, req *http.Request) {
+func (h Handler) handle(method string, w http.ResponseWriter, req *http.Request) {
 	reqData := struct {
 		Type                  string
 		TokenUniqueReferences []string
@@ -207,7 +213,7 @@ func (h Handler) handle(t string, w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	statuses, err := h.apiHandler.Manage(t, reqData.Type, reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
+	statuses, err := h.apiHandler.Manage(method, reqData.Type, reqData.TokenUniqueReferences, reqData.CausedBy, reqData.ReasonCode)
 	if err != nil {
 		// TO DO: log more error details
 		w.WriteHeader(http.StatusInternalServerError)
@@ -225,4 +231,65 @@ func (h Handler) healthCheck(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h Handler) gettokenHandler(w http.ResponseWriter, req *http.Request) {
+	rData := struct {
+		OutSystem            string
+		RequestorID          string
+		TokenUniqueReference string
+	}{}
+	if err := tools.ReadBodyToStruct(req.Body, &rData); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	td, err := h.apiHandler.GetToken(rData.OutSystem, rData.RequestorID, rData.TokenUniqueReference)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	resp, _ := json.Marshal(td)
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(resp)
+
+}
+
+func (h Handler) searchHandler(w http.ResponseWriter, req *http.Request) {
+	rData := struct {
+		OutSystem   string
+		RequestorID string
+		CardData    struct {
+			Type          string
+			AccountNumber string
+			Expiry        string
+			SecurityCode  string
+		}
+		Source string
+	}{}
+
+	if err := tools.ReadBodyToStruct(req.Body, &rData); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	td, err := h.apiHandler.SearchToken(
+		rData.OutSystem,
+		rData.RequestorID,
+		rData.CardData.Type,
+		rData.CardData.AccountNumber,
+		rData.CardData.Expiry,
+		rData.CardData.SecurityCode,
+		rData.Source,
+	)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	resp, _ := json.Marshal(td)
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(resp)
+
 }

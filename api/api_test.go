@@ -44,6 +44,14 @@ func (testAPIhandler) Transact(typ, tur string) (string, string, string, error) 
 func (testAPIhandler) HealthCheck() error {
 	return nil
 }
+func (testAPIhandler) GetToken(osys, trid, tur string) ([]TokenStatus, error) {
+	log.Printf("GetToken: osys: %s trid: %s, tur: %s", osys, trid, tur)
+	return []TokenStatus{TokenStatus{}}, nil
+}
+func (testAPIhandler) SearchToken(osys, trid, ctype, pan, exp, cvc, source string) ([]TokenStatus, error) {
+	log.Printf("SearchToken: osys: %s trid: %s, ctype: %s, pan: %s, exp: %s, cvc: %s, source: %s", osys, trid, ctype, pan, exp, cvc, source)
+	return []TokenStatus{TokenStatus{}}, nil
+}
 
 var (
 	testurl string
@@ -72,7 +80,7 @@ func TestMain(m *testing.M) {
 	os.Exit(tErr)
 }
 
-func requst(url string, payload []byte) (int, []byte, error) {
+func requst(url string, payload []byte) ([]byte, error) {
 	request, _ := http.NewRequest("POST", url, bytes.NewReader(payload))
 	request.Header.Add("Content-Type", "application/json")
 	request.Header.Add("Accept", "application/json")
@@ -82,87 +90,92 @@ func requst(url string, payload []byte) (int, []byte, error) {
 
 	responce, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return 0, nil, fmt.Errorf("request forwarding error: %w", err)
+		return nil, fmt.Errorf("request forwarding error: %w", err)
 	}
 	defer responce.Body.Close()
 
 	body, err := ioutil.ReadAll(responce.Body)
 	if err != nil {
-		return responce.StatusCode, nil, fmt.Errorf("responce body reading error: %w", err)
+		return nil, fmt.Errorf("responce body reading error: %w", err)
+	}
+	if responce.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Wrong responce code: %v", responce.StatusCode)
 	}
 
 	log.Printf("    <<<<<<<    Response: %s\n%s\n", responce.Status, body)
 
-	return responce.StatusCode, body, nil
+	return body, nil
 }
 
 func TestTokenize(t *testing.T) {
-	c, _, err := requst(testurl+"/api/v1/tokenize",
+	_, err := requst(testurl+"/api/v1/tokenize",
 		[]byte(`{"outsystem":"A5","requestorid":"123454","carddata":{"accountNumber":"5123456789012345","expiry":"0921","SecurityCode":"123"},"source":"ACCOUNT_ADDED_MANUALLY"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if c != http.StatusOK {
-		t.Fatalf("Wrong responce code: %v", c)
 	}
 	time.Sleep(time.Second * 2)
 	log.Println("Waiting for storage of assests finished")
 }
 
 func TestTransact(t *testing.T) {
-	c, _, err := requst(testurl+"/api/v1/transact",
+	_, err := requst(testurl+"/api/v1/transact",
 		[]byte(`{"tokenUniqueReference":"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","cryptogramType":"UCAF"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c != http.StatusOK {
-		t.Fatalf("Wrong responce code: %v", c)
-	}
 }
 
 func TestDelete(t *testing.T) {
-	c, _, err := requst(testurl+"/api/v1/delete",
+	_, err := requst(testurl+"/api/v1/delete",
 		[]byte(`{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if c != http.StatusOK {
-		t.Fatalf("Wrong responce code: %v", c)
 	}
 }
 
 func TestSuspend(t *testing.T) {
-	c, _, err := requst(testurl+"/api/v1/suspend",
+	_, err := requst(testurl+"/api/v1/suspend",
 		[]byte(`{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if c != http.StatusOK {
-		t.Fatalf("Wrong responce code: %v", c)
 	}
 }
 
 func TestUnsuspend(t *testing.T) {
-	c, _, err := requst(testurl+"/api/v1/unsuspend",
+	_, err := requst(testurl+"/api/v1/unsuspend",
 		[]byte(`{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c != http.StatusOK {
-		t.Fatalf("Wrong responce code: %v", c)
-	}
 }
-func TestHealthCheck(t *testing.T) {
-	c, _, err := requst(testurl+"/api/v1/healthcheck", []byte{})
+
+func TestGetToken(t *testing.T) {
+	_, err := requst(testurl+"/api/v1/gettoken",
+		[]byte(`{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}`),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c != http.StatusOK {
-		t.Fatalf("Wrong responce code: %v", c)
+}
+
+func TestSearch(t *testing.T) {
+	_, err := requst(testurl+"/api/v1/search",
+		[]byte(`{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}`),
+	)
+	if err != nil {
+		t.Fatal(err)
 	}
+}
+
+func TestHealthCheck(t *testing.T) {
+	_, err := requst(testurl+"/api/v1/healthcheck", []byte{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 }
