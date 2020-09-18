@@ -44,12 +44,12 @@ func (testAPIhandler) Transact(typ, tur string) (string, string, string, error) 
 func (testAPIhandler) HealthCheck() error {
 	return nil
 }
-func (testAPIhandler) GetToken(osys, trid, tur string) ([]TokenStatus, error) {
+func (testAPIhandler) GetToken(osys, trid, tur string) (*TokenStatus, error) {
 	log.Printf("GetToken: osys: %s trid: %s, tur: %s", osys, trid, tur)
-	return []TokenStatus{TokenStatus{}}, nil
+	return &TokenStatus{}, nil
 }
-func (testAPIhandler) SearchToken(osys, trid, ctype, pan, exp, cvc, source string) ([]TokenStatus, error) {
-	log.Printf("SearchToken: osys: %s trid: %s, ctype: %s, pan: %s, exp: %s, cvc: %s, source: %s", osys, trid, ctype, pan, exp, cvc, source)
+func (testAPIhandler) SearchToken(osys, trid, tur, panRef, ctype, pan, exp, cvc, source string) ([]TokenStatus, error) {
+	log.Printf("SearchToken: osys: %s trid: %s,tur: %s, panRef: %s, ctype: %s, pan: %s, exp: %s, cvc: %s, source: %s", osys, trid, tur, panRef, ctype, pan, exp, cvc, source)
 	return []TokenStatus{TokenStatus{}}, nil
 }
 
@@ -156,7 +156,7 @@ func TestUnsuspend(t *testing.T) {
 
 func TestGetToken(t *testing.T) {
 	_, err := requst(testurl+"/api/v1/gettoken",
-		[]byte(`{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}`),
+		[]byte(`{"OutSystem":"A5","RequestorID":"98765432101","tokenUniqueReference":"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45"}`),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -165,7 +165,7 @@ func TestGetToken(t *testing.T) {
 
 func TestSearch(t *testing.T) {
 	_, err := requst(testurl+"/api/v1/search",
-		[]byte(`{"tokenUniqueReferences":["DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532"],"causedby":"CARDHOLDER","reasoncode":"OTHER"}`),
+		[]byte(`{"OutSystem":"A5","RequestorID":"98765432101","tokenUniqueReference":"", "TUR":"","carddata":{"accountNumber":"5123456789012345","expiry":"0921","SecurityCode":"123"}}`),
 	)
 	if err != nil {
 		t.Fatal(err)

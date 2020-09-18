@@ -30,8 +30,8 @@ type PGAPI interface {
 	Tokenize(osys, trid, ctype, pan, exp, cvc, source string) (string, string, error)
 	Manage(method, ctype string, turs []string, causedBy, reason string) ([]TokenStatus, error)
 	Transact(ctype, tur string) (string, string, string, error)
-	GetToken(osys, trid, tur string) ([]TokenStatus, error)
-	SearchToken(osys, trid, ctype, pan, exp, cvc, source string) ([]TokenStatus, error)
+	GetToken(osys, trid, tur string) (*TokenStatus, error)
+	SearchToken(osys, trid, tur, panRef, ctype, pan, exp, cvc, source string) ([]TokenStatus, error)
 	HealthCheck() error
 }
 
@@ -260,6 +260,8 @@ func (h Handler) searchHandler(w http.ResponseWriter, req *http.Request) {
 	rData := struct {
 		OutSystem   string
 		RequestorID string
+		TUR         string
+		PanURef     string
 		CardData    struct {
 			Type          string
 			AccountNumber string
@@ -277,6 +279,8 @@ func (h Handler) searchHandler(w http.ResponseWriter, req *http.Request) {
 	td, err := h.apiHandler.SearchToken(
 		rData.OutSystem,
 		rData.RequestorID,
+		rData.TUR,
+		rData.PanURef,
 		rData.CardData.Type,
 		rData.CardData.AccountNumber,
 		rData.CardData.Expiry,

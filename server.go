@@ -298,12 +298,41 @@ func (handler) Transact(typ, tur string) (string, string, string, error) {
 	}
 }
 
-func (handler) GetToken(osys, trid, tur string) ([]api.TokenStatus, error) {
-	return nil, nil
+func (handler) GetToken(osys, trid, tur string) (*api.TokenStatus, error) {
+	ti, err := m.GetToken(trid, tur)
+	if err != nil {
+		return nil, err
+	}
+	return &api.TokenStatus{
+		TokenUniqueReference: ti.TokenUniqueReference,
+		Status:               ti.Status,
+		StatusTimestamp:      ti.StatusTimestamp,
+	}, nil
 }
 
-func (handler) SearchToken(osys, trid, ctype, pan, exp, cvc, source string) ([]api.TokenStatus, error) {
-	return nil, nil
+func (handler) SearchToken(osys, trid, tur, panRef, ctype, pan, exp, cvc, source string) ([]api.TokenStatus, error) {
+	if len(exp) != 4 {
+		return nil, errors.New("wrong length of exp (must be 4)")
+	}
+	tokenStatuses, err := m.Search(trid, tur, panRef, mdes.CardAccountData{
+		AccountNumber: pan,
+		ExpiryMonth:   exp[:2],
+		ExpiryYear:    exp[2:],
+		SecurityCode:  cvc,
+	})
+	if err != nil {
+		return nil, err
+	}
+	ts := []api.TokenStatus{}
+	for _, t := range tokenStatuses {
+		ts = append(ts, api.TokenStatus{
+			TokenUniqueReference: t.TokenUniqueReference,
+			Status:               t.Status,
+			StatusTimestamp:      t.StatusTimestamp,
+			SuspendedBy:          t.SuspendedBy,
+		})
+	}
+	return ts, nil
 }
 
 // HealthCheck - health check request handler

@@ -72,6 +72,7 @@ type MDESapi struct {
 	urlNewTRID         string
 	urlGetToken        string
 	urlSearch          string
+	sandbox            bool
 }
 
 // encryptedPayload structure of encrypted payload of MDES API
@@ -104,6 +105,7 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData), tridHandler
 	MDESenv, MDESsys := "", ""
 	switch conf.System {
 	case "SandBox":
+		mAPI.sandbox = true
 		MDESenv = "static/"  // can be "mtf/" or "" for PROD
 		MDESsys = "sandbox." // can be "" for MTF and PROD
 	case "MTF":
@@ -356,15 +358,15 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 	tools.Debug("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
 
 	tokenDetail := struct {
-		AccountHolderData struct {
-			AccountHolderName              string
-			ConsumerIdentifier             string
-			AccountHolderEmailAddress      string
-			AccountHolderMobilePhoneNumber struct {
-				CountryDialInCode int
-				PhoneNumber       int
-			}
-		}
+		// AccountHolderData struct {
+		// 	AccountHolderName              string
+		// 	ConsumerIdentifier             string
+		// 	AccountHolderEmailAddress      string
+		// 	AccountHolderMobilePhoneNumber struct {
+		// 		CountryDialInCode int
+		// 		PhoneNumber       int
+		// 	}
+		// }
 		PaymentAccountReference string
 	}{}
 
@@ -377,7 +379,9 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 	responseStruct.TokenInfo.BrandAssetID = responseStruct.ProductConfig.CardBackgroundCombinedAssetID
 	// ! ! ! TESTING TRICK (REMOVE IT BY MOVING TO MTF):
 	// Falsificate assetID
-	responseStruct.TokenInfo.BrandAssetID = "3789637f-32a1-4810-a138-4bf34501c509"
+	if m.sandbox {
+		responseStruct.TokenInfo.BrandAssetID = "3789637f-32a1-4810-a138-4bf34501c509"
+	}
 	// REMOVE IT BY MOVING TO MTF|PROD ! ! !
 	responseStruct.TokenInfo.IsCoBranded = responseStruct.ProductConfig.IsCoBranded == "true"
 	responseStruct.TokenInfo.CoBrandName = responseStruct.ProductConfig.CoBrandName
@@ -568,7 +572,9 @@ func (m MDESapi) notify(payload []byte) (string, error) {
 
 	// ! ! ! TESTING TRICK (REMOVE IT BY MOVING TO MTF):
 	// Falsificate decrypted data with the response from the Search Token request
-	decrypted = []byte(`{"tokens":[{"tokenUniqueReference":"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","status":"ACTIVE","statusTimestamp":"2017-09-05T00:00:00.000Z"},{"tokenUniqueReference":"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","status":"ACTIVE","statusTimestamp":"2017-09-06T00:00:00.000Z"},{"tokenUniqueReference":"DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532","status":"SUSPENDED","suspendedBy":["TOKEN_REQUESTOR"],"statusTimestamp":"2017-09-07T00:00:00.000Z"}]}`)
+	if m.sandbox {
+		decrypted = []byte(`{"tokens":[{"tokenUniqueReference":"DWSPMC000000000132d72d4fcb2f4136a0532d3093ff1a45","status":"ACTIVE","statusTimestamp":"2017-09-05T00:00:00.000Z"},{"tokenUniqueReference":"DWSPMC00000000032d72d4ffcb2f4136a0532d32d72d4fcb","status":"ACTIVE","statusTimestamp":"2017-09-06T00:00:00.000Z"},{"tokenUniqueReference":"DWSPMC000000000fcb2f4136b2f4136a0532d2f4136a0532","status":"SUSPENDED","suspendedBy":["TOKEN_REQUESTOR"],"statusTimestamp":"2017-09-07T00:00:00.000Z"}]}`)
+	}
 	//log.Printf("Falsificated payload:\n%s\n", decrypted)
 	// REMOVE IT BY MOVING TO MTF|PROD ! ! !
 
@@ -619,7 +625,7 @@ func (m MDESapi) tridCB(payload []byte) (string, error) {
 }
 
 //GetToken is implementation of MDES SearchToken API call
-func (m MDESapi) GetToken(rtid, tur string) (*TokenInfo, error) {
+func (m MDESapi) GetToken(rtid, tur string) (*TokenStatus, error) {
 
 	// TO DO: generate random ID
 	reqID := "123456"
@@ -637,7 +643,7 @@ func (m MDESapi) GetToken(rtid, tur string) (*TokenInfo, error) {
 		ResponseHost: respHost,
 		//TokenRequestorID:     trid,
 		TokenUniqueReference: tur,
-		PaymentAppInstanceID: "123456789",
+		PaymentAppInstanceID: "M4MCLOUDDSRP", // For M4M token requestors this value is 'M4MCLOUDDSRP' (trid-api.yaml)
 		IincludeTokenDetail:  "true",
 	})
 
@@ -680,20 +686,10 @@ func (m MDESapi) GetToken(rtid, tur string) (*TokenInfo, error) {
 		return nil, err
 	}
 
-	return &TokenInfo{
-		TokenUniqueReference:    responseStruct.Token.TokenUniqueReference,
-		TokenPanSuffix:          responseStruct.Token.TokenInfo.TokenPanSuffix,
-		TokenExpiry:             responseStruct.Token.TokenInfo.TokenExpiry,
-		PanUniqueReference:      responseStruct.Token.TokenInfo.PanUniqueReference,
-		AccountPanSuffix:        responseStruct.Token.TokenInfo.AccountPanSuffix,
-		AccountPanExpiry:        responseStruct.Token.TokenInfo.AccountPanExpiry,
-		BrandAssetID:            responseStruct.Token.ProductConfig.CardBackgroundCombinedAssetID,
-		ProductCategory:         responseStruct.Token.TokenInfo.ProductCategory,
-		PaymentAccountReference: tokenDetail.PaymentAccountReference,
-		TokenAssuranceLevel:     responseStruct.Token.TokenInfo.TokenAssuranceLevel,
-		IsCoBranded:             responseStruct.Token.ProductConfig.IsCoBranded == "true",
-		CoBrandName:             responseStruct.Token.ProductConfig.CoBrandName,
-		IssuerName:              responseStruct.Token.ProductConfig.IssuerName,
+	return &TokenStatus{
+		TokenUniqueReference: responseStruct.Token.TokenUniqueReference,
+		Status:               responseStruct.Token.Status,
+		StatusTimestamp:      responseStruct.Token.StatusTimestamp,
 	}, nil
 }
 
