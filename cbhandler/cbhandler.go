@@ -51,6 +51,9 @@ func New(q *queue.Queue, interval int) chan bool {
 						log.Printf("Queue receive error: %v", err)
 						break
 					}
+					if data == nil {
+						break // no more data to handele
+					}
 					go send(q, data, receipt)
 				}
 			}

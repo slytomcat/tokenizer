@@ -60,7 +60,7 @@ func TestNew(t *testing.T) {
 	}
 
 	data, receipt, err = q.Receive()
-	if err == nil {
+	if err == nil && data != nil {
 		t.Fatal("no error when expected")
 	}
 	t.Logf("expected error: %v", err)

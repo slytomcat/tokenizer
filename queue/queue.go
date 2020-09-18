@@ -5,7 +5,6 @@ package queue
 
 import (
 	"encoding/json"
-	"errors"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -84,7 +83,7 @@ func (q *Queue) Receive() (*QData, string, error) {
 		return nil, "", err
 	}
 	if len(res.Messages) != 1 {
-		return nil, "", errors.New("wrong number of messages received")
+		return nil, "", nil
 	}
 	qd := QData{}
 	err = json.Unmarshal([]byte(*res.Messages[0].Body), &qd)
