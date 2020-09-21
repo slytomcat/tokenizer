@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -161,4 +162,11 @@ func (a *AppLog) Print(level, mtype, message string, data interface{}) {
 	})
 
 	fmt.Println(string(m))
+}
+
+// UniqueID returns qunique ID. ID is generated as 24 random bytes encoded as BASE64(URL safe) string
+func UniqueID() string {
+	id := make([]byte, 24)
+	rand.Read(id)
+	return base64.URLEncoding.EncodeToString(id)
 }

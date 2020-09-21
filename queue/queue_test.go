@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"log"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -10,6 +11,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	log.SetFlags(log.Lmicroseconds)
 	conf := struct{ QUEUE Config }{}
 	err := tools.ReadJSON("../config.json", &conf)
 	if err != nil {

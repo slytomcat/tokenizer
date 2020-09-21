@@ -318,9 +318,9 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 		} `json:"fundingAccountInfo"`
 	}{
 		ResponseHost:     "assist.ru",
-		RequestID:        "12344321", // TO DO: make uniq ID here
-		TaskID:           "12344321", // TO DO: make uniq ID here
-		TokenType:        "CLOUD",    //constant
+		RequestID:        tools.UniqueID(),
+		TaskID:           tools.UniqueID(),
+		TokenType:        "CLOUD", //constant
 		TokenRequestorID: requestorID,
 		FundingAccountInfo: struct {
 			EncryptedPayload encryptedPayload `json:"encryptedPayload"`
@@ -400,7 +400,7 @@ func (m MDESapi) Transact(tur string) (*CryptogramData, error) {
 		CryptogramType       string `json:"cryptogramType"`
 	}{
 		ResponseHost:         "assist.ru",
-		RequestID:            "2093809230",
+		RequestID:            tools.UniqueID(),
 		TokenUniqueReference: tur,
 		CryptogramType:       "UCAF",
 	})
@@ -447,7 +447,7 @@ func (m MDESapi) Manage(method string, tokens []string, causedBy, reasonCode str
 		ReasonCode            string   `json:"reasonCode"`
 	}{
 		ResponseHost:          "assist.ru",
-		RequestID:             "2093809230", // TO DO: make it unique
+		RequestID:             tools.UniqueID(),
 		TokenUniqueReferences: tokens,
 		CausedBy:              causedBy,
 		ReasonCode:            reasonCode,
@@ -627,8 +627,7 @@ func (m MDESapi) tridCB(payload []byte) (string, error) {
 //GetToken is implementation of MDES SearchToken API call
 func (m MDESapi) GetToken(rtid, tur string) (*TokenStatus, error) {
 
-	// TO DO: generate random ID
-	reqID := "123456"
+	reqID := tools.UniqueID()
 	respHost := "assist.ru"
 
 	payload, _ := json.Marshal(struct {
@@ -696,8 +695,7 @@ func (m MDESapi) GetToken(rtid, tur string) (*TokenStatus, error) {
 // Search is implementation of MDES SearchToken API call
 func (m MDESapi) Search(trid, tur, panURef string, cardData CardAccountData) ([]TokenStatus, error) {
 
-	// TO DO: generate random ID
-	reqID := "123456"
+	reqID := tools.UniqueID()
 	respHost := "assist.ru"
 	payload := []byte{}
 	switch {

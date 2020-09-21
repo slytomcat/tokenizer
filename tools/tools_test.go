@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"testing"
 )
@@ -270,4 +271,11 @@ func TestAppLog(t *testing.T) {
 		Question: "The Ultimate Question of Life, the Universe, and Everything",
 		Answer:   42,
 	})
+}
+
+func ExampleUniqueID() {
+	rand.Seed(42)
+	fmt.Println(UniqueID())
+	// Output:
+	// U4x_lrFkvxuXu59LtHLon1sUhPJSCcnZ
 }

@@ -1,6 +1,10 @@
 package mdes
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/slytomcat/tokenizer/tools"
+)
 
 // NewTRID is the implementation of async request for new TRID
 func (m MDESapi) NewTRID(id, name string) error {
@@ -21,7 +25,7 @@ func (m MDESapi) NewTRID(id, name string) error {
 		TokenRequestors []TokenRequestor `json:"tokenRequestors"`
 	}{
 		ResponseHost:    "assist.ru",
-		RequestID:       "2093809230", // TO DO: make it unique
+		RequestID:       tools.UniqueID(),
 		TokenRequestors: []TokenRequestor{tokenRequestor},
 	})
 

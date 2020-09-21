@@ -1,6 +1,7 @@
 package cbhandler
 
 import (
+	"log"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 )
 
 func Test1(t *testing.T) {
+	log.SetFlags(log.Lmicroseconds)
 	config := struct {
 		QUEUE queue.Config
 		CBH   Config
@@ -30,10 +32,27 @@ func Test1(t *testing.T) {
 		t.Fatalf("queue sending error: %v", err)
 	}
 	t.Log(`sent`)
-	time.Sleep(time.Second * 4)
+	time.Sleep(time.Second * 2)
+
+	err = q.Send(queue.QData{
+		URL:     "wrong URL",
+		Payload: `{"some":"payload"}`,
+	})
+	if err != nil {
+		t.Fatalf("queue sending error: %v", err)
+	}
+	err = q.Send(queue.QData{
+		URL:     "http://s-t-c.tk:8080/echo",
+		Payload: `{"some":"payload"}`,
+	})
+	if err != nil {
+		t.Fatalf("queue sending error: %v", err)
+	}
+	time.Sleep(time.Second * 2)
 
 	t.Log(`wait finished`)
 
 	cbExit <- true
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 1)
+
 }

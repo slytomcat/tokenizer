@@ -54,7 +54,7 @@ func New(q *queue.Queue, interval int) chan bool {
 					if data == nil {
 						break // no more data to handele
 					}
-					go send(q, data, receipt)
+					go send(q, *data, receipt)
 				}
 			}
 		}
@@ -62,7 +62,7 @@ func New(q *queue.Queue, interval int) chan bool {
 	return quit
 }
 
-func send(q *queue.Queue, d *queue.QData, r string) {
+func send(q *queue.Queue, d queue.QData, r string) {
 
 	// make call-back
 	req, _ := http.NewRequest("POST", d.URL, bytes.NewReader([]byte(d.Payload)))
