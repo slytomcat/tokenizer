@@ -178,7 +178,8 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 
 	// TO DO decide what to output in log/debug concole
 	log.Printf("    <<<<<<<    Request URL: %s\n", url)
-	log.Printf("    <<<<<<<    Request Heder:\n%v\n", request.Header)
+	header, _ := json.Marshal(request.Header)
+	log.Printf("    <<<<<<<    Request Heder:\n%v\n", string(header))
 	log.Printf("    <<<<<<<    Request Body:\n%s\n", payload)
 
 	// get responce
