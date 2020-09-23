@@ -164,7 +164,7 @@ func (a *AppLog) Print(level, mtype, message string, data interface{}) {
 	fmt.Println(string(m))
 }
 
-// UniqueID returns qunique ID. ID is generated as 24 random bytes encoded as BASE64(URL safe) string
+// UniqueID returns qunique ID. ID is generated as 24 random bytes (math.rand) encoded as BASE64(URL safe) string
 func UniqueID() string {
 	id := make([]byte, 24)
 	rand.Read(id)

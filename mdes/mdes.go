@@ -84,6 +84,8 @@ type encryptedPayload struct {
 	Iv                   string `json:"iv"`                   //
 }
 
+var responceHost = "emvts.t.paysecure.ru"
+
 // NewMDESapi creates new MDESapi adapter implementation.
 func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData), tridHandler func(string, string)) (*MDESapi, error) {
 
@@ -298,10 +300,7 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 	payloadToEncrypt, _ := json.Marshal(struct {
 		CardAccountData CardAccountData `json:"cardAccountData"`
 		Source          string          `json:"source"`
-	}{
-		CardAccountData: cardData,
-		Source:          source,
-	})
+	}{})
 
 	encrPayload, err := m.encryptPayload(payloadToEncrypt)
 	if err != nil {
@@ -318,7 +317,7 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 			EncryptedPayload encryptedPayload `json:"encryptedPayload"`
 		} `json:"fundingAccountInfo"`
 	}{
-		ResponseHost:     "assist.ru",
+		ResponseHost:     responceHost,
 		RequestID:        tools.UniqueID(),
 		TaskID:           tools.UniqueID(),
 		TokenType:        "CLOUD", //constant
@@ -400,7 +399,7 @@ func (m MDESapi) Transact(tur string) (*CryptogramData, error) {
 		TokenUniqueReference string `json:"tokenUniqueReference"`
 		CryptogramType       string `json:"cryptogramType"`
 	}{
-		ResponseHost:         "assist.ru",
+		ResponseHost:         responceHost,
 		RequestID:            tools.UniqueID(),
 		TokenUniqueReference: tur,
 		CryptogramType:       "UCAF",
@@ -447,7 +446,7 @@ func (m MDESapi) Manage(method string, tokens []string, causedBy, reasonCode str
 		CausedBy              string   `json:"causedBy"`
 		ReasonCode            string   `json:"reasonCode"`
 	}{
-		ResponseHost:          "assist.ru",
+		ResponseHost:          responceHost,
 		RequestID:             tools.UniqueID(),
 		TokenUniqueReferences: tokens,
 		CausedBy:              causedBy,
@@ -541,7 +540,7 @@ func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ResponseHost string `json:"responseHost"`
 		ResponseID   string `json:"responseId"`
 	}{
-		ResponseHost: "assist.ru",
+		ResponseHost: responceHost,
 		ResponseID:   rID,
 	})
 
@@ -628,9 +627,6 @@ func (m MDESapi) tridCB(payload []byte) (string, error) {
 //GetToken is implementation of MDES SearchToken API call
 func (m MDESapi) GetToken(rtid, tur string) (*TokenStatus, error) {
 
-	reqID := tools.UniqueID()
-	respHost := "assist.ru"
-
 	payload, _ := json.Marshal(struct {
 		RequestID    string `json:"requestId"`
 		ResponseHost string `json:"responseHost"`
@@ -639,8 +635,8 @@ func (m MDESapi) GetToken(rtid, tur string) (*TokenStatus, error) {
 		PaymentAppInstanceID string `json:"paymentAppInstanceId"`
 		IincludeTokenDetail  string `json:"includeTokenDetail"`
 	}{
-		RequestID:    reqID,
-		ResponseHost: respHost,
+		RequestID:    tools.UniqueID(),
+		ResponseHost: responceHost,
 		//TokenRequestorID:     trid,
 		TokenUniqueReference: tur,
 		PaymentAppInstanceID: "M4MCLOUDDSRP", // For M4M token requestors this value is 'M4MCLOUDDSRP' (trid-api.yaml)
@@ -697,7 +693,7 @@ func (m MDESapi) GetToken(rtid, tur string) (*TokenStatus, error) {
 func (m MDESapi) Search(trid, tur, panURef string, cardData CardAccountData) ([]TokenStatus, error) {
 
 	reqID := tools.UniqueID()
-	respHost := "assist.ru"
+	respHost := responceHost
 	payload := []byte{}
 	switch {
 	case tur != "":
