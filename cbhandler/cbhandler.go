@@ -5,6 +5,7 @@ package cbhandler
 
 import (
 	"bytes"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -75,7 +76,8 @@ func send(q *queue.Queue, d queue.QData, r string) {
 		log.Printf("ERROR: call-back: receved unsuccess status code: %s while sending data to %s", resp.Status, d.URL)
 		return
 	}
-	log.Printf("INFO: call-back: successfully send call-back to: %s with: %s", d.URL, d.Payload)
+	payload, _ := json.Marshal(d.Payload)
+	log.Printf("INFO: call-back: successfully send call-back to: %s with: %s", d.URL, string(payload))
 
 	// when callback was succesfully sent try to delete message from queue
 	if err = q.Delete(r); err != nil {

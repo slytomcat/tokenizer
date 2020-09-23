@@ -121,7 +121,7 @@ func (m *MDESapi) initKeys(conf *Config) error {
 	}
 	signingKey, err := loadPivateKey(conf.SignKey, string(passw))
 	if err != nil {
-		return err
+		return fmt.Errorf("signing key loading error: %v", err)
 	}
 
 	m.oAuthSigner = &oauth.Signer{ConsumerKey: conf.APIKey, SigningKey: signingKey}
@@ -134,10 +134,9 @@ func (m *MDESapi) initKeys(conf *Config) error {
 	}
 
 	for _, keyData := range conf.DecryptKeys {
-		// TO DO get password from secure storage
 		decryptKey, err := loadPivateKey(keyData.Key, string(passw))
 		if err != nil {
-			return err
+			return fmt.Errorf("decryption key loading error: %v", err)
 		}
 		m.storedDecryptKeys[keyData.Fingerprint] = decryptKey
 	}

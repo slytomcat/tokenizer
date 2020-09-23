@@ -147,7 +147,7 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData), tridHandler
 	go func() {
 		log.Printf("INFO: Starting MDES callback service at %s", conf.CallBackHostPort)
 		var err error
-		if conf.TLSCert == "" && conf.System == "SandBox" {
+		if conf.TLSCert == "" {
 			err = server.ListenAndServe()
 		} else {
 			err = server.ListenAndServeTLS(conf.TLSCert, conf.TLSKey)

@@ -52,7 +52,7 @@ func init() {
 // Config is the service configuration values set
 type Config struct {
 	API    api.Config
-	DB     database.ConfigS
+	DB     database.Config
 	Cache  cache.Config
 	QUEUE  queue.Config
 	MDES   mdes.Config
@@ -78,7 +78,7 @@ func main() {
 func doMain(config *Config) {
 	var err error
 	// connect to databse
-	db, err = database.NewDBs(&config.DB)
+	db, err = database.NewDB(&config.DB)
 	tools.PanicIf(err)
 
 	// connect to queue
