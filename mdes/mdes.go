@@ -51,6 +51,7 @@ type Config struct {
 	DecryptKeyPassw  string
 	DecryptKeys      []keywfp // to support multiple keys
 	APIKey           string
+	ResponceHost     string
 }
 
 // MDESapi TokenizerAPI implementation for MasterCard MDES Digital enabled API
@@ -73,6 +74,7 @@ type MDESapi struct {
 	urlGetToken        string
 	urlSearch          string
 	sandbox            bool
+	responceHost       string
 }
 
 // encryptedPayload structure of encrypted payload of MDES API
@@ -84,14 +86,13 @@ type encryptedPayload struct {
 	Iv                   string `json:"iv"`                   //
 }
 
-var responceHost = "emvts.t.paysecure.ru"
-
 // NewMDESapi creates new MDESapi adapter implementation.
 func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData), tridHandler func(string, string)) (*MDESapi, error) {
 
 	mAPI := &MDESapi{
-		cbHandler:   cbHandler,
-		tridHandler: tridHandler,
+		cbHandler:    cbHandler,
+		tridHandler:  tridHandler,
+		responceHost: conf.ResponceHost,
 	}
 
 	var err error
@@ -137,21 +138,32 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData), tridHandler
 	server := http.Server{
 		Addr: conf.CallBackHostPort,
 		Handler: callBackHandler{
-			cbFunc:   mAPI.notify,
-			path:     conf.CallBackURI,
-			tridFunc: mAPI.tridCB,
-			tridpath: conf.TRIDcbURI,
+			cbFunc:       mAPI.notify,
+			path:         conf.CallBackURI,
+			tridFunc:     mAPI.tridCB,
+			tridpath:     conf.TRIDcbURI,
+			responceHost: conf.ResponceHost,
 		},
 	}
 
 	mAPI.ShutDown = func() error { return server.Shutdown(context.Background()) }
 
 	go func() {
-		log.Printf("INFO: Starting MDES callback service at %s", conf.CallBackHostPort)
 		var err error
 		if conf.TLSCert == "" {
+			log.Printf("INFO: Starting http MDES callback service at %s", conf.CallBackHostPort)
 			err = server.ListenAndServe()
 		} else {
+			go func() {
+				log.Print("INFO: http to https redirect service at :80")
+				err := http.ListenAndServe(":80", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					http.Redirect(w, r, "https://"+conf.CallBackHostPort+r.RequestURI, http.StatusMovedPermanently)
+				}))
+				if !errors.Is(err, http.ErrServerClosed) {
+					panic(err)
+				}
+			}()
+			log.Printf("INFO: Starting MDES callback service at %s", conf.CallBackHostPort)
 			err = server.ListenAndServeTLS(conf.TLSCert, conf.TLSKey)
 		}
 
@@ -187,12 +199,14 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 	// get responce
 	responce, err := http.DefaultClient.Do(request)
 	if err != nil {
+		log.Printf("request sending error: %v", err)
 		return nil, fmt.Errorf("request sending error: %w", err)
 	}
 	defer responce.Body.Close()
 
 	body, err := ioutil.ReadAll(responce.Body)
 	if err != nil {
+		log.Printf("responce body reading error: %v", err)
 		return nil, fmt.Errorf("responce body reading error: %w", err)
 	}
 
@@ -317,7 +331,7 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 			EncryptedPayload encryptedPayload `json:"encryptedPayload"`
 		} `json:"fundingAccountInfo"`
 	}{
-		ResponseHost:     responceHost,
+		ResponseHost:     m.responceHost,
 		RequestID:        tools.UniqueID(),
 		TaskID:           tools.UniqueID(),
 		TokenType:        "CLOUD", //constant
@@ -399,7 +413,7 @@ func (m MDESapi) Transact(tur string) (*CryptogramData, error) {
 		TokenUniqueReference string `json:"tokenUniqueReference"`
 		CryptogramType       string `json:"cryptogramType"`
 	}{
-		ResponseHost:         responceHost,
+		ResponseHost:         m.responceHost,
 		RequestID:            tools.UniqueID(),
 		TokenUniqueReference: tur,
 		CryptogramType:       "UCAF",
@@ -446,7 +460,7 @@ func (m MDESapi) Manage(method string, tokens []string, causedBy, reasonCode str
 		CausedBy              string   `json:"causedBy"`
 		ReasonCode            string   `json:"reasonCode"`
 	}{
-		ResponseHost:          responceHost,
+		ResponseHost:          m.responceHost,
 		RequestID:             tools.UniqueID(),
 		TokenUniqueReferences: tokens,
 		CausedBy:              causedBy,
@@ -503,10 +517,11 @@ func (m MDESapi) GetAsset(assetID string) (*MediaContent, error) {
 // Call-back handling staff
 
 type callBackHandler struct {
-	cbFunc   func([]byte) (string, error)
-	path     string
-	tridFunc func([]byte) (string, error)
-	tridpath string
+	cbFunc       func([]byte) (string, error)
+	path         string
+	tridFunc     func([]byte) (string, error)
+	tridpath     string
+	responceHost string
 }
 
 func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -524,6 +539,9 @@ func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rID, err = c.cbFunc(body)
 	case "POST" + c.tridpath:
 		rID, err = c.tridFunc(body)
+	case "GET/":
+		w.Write([]byte("MDES - ok"))
+		return
 	default:
 		log.Printf("ERROR: wrong metod/path: %s%s", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusNotFound)
@@ -540,7 +558,7 @@ func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ResponseHost string `json:"responseHost"`
 		ResponseID   string `json:"responseId"`
 	}{
-		ResponseHost: responceHost,
+		ResponseHost: c.responceHost,
 		ResponseID:   rID,
 	})
 
@@ -636,7 +654,7 @@ func (m MDESapi) GetToken(rtid, tur string) (*TokenStatus, error) {
 		IincludeTokenDetail  string `json:"includeTokenDetail"`
 	}{
 		RequestID:    tools.UniqueID(),
-		ResponseHost: responceHost,
+		ResponseHost: m.responceHost,
 		//TokenRequestorID:     trid,
 		TokenUniqueReference: tur,
 		PaymentAppInstanceID: "M4MCLOUDDSRP", // For M4M token requestors this value is 'M4MCLOUDDSRP' (trid-api.yaml)
@@ -693,7 +711,7 @@ func (m MDESapi) GetToken(rtid, tur string) (*TokenStatus, error) {
 func (m MDESapi) Search(trid, tur, panURef string, cardData CardAccountData) ([]TokenStatus, error) {
 
 	reqID := tools.UniqueID()
-	respHost := responceHost
+	respHost := m.responceHost
 	payload := []byte{}
 	switch {
 	case tur != "":

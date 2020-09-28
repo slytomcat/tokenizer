@@ -52,6 +52,7 @@
             "EncrypKeyFp":"<Fingerprint of encryption key>",
             "DecryptKeyPassw":"<path to password for decryption key safe>",
             "DecryptKeys": [{"Key": "<path to decryption key>", "Fingerprint":"<decryption key fingerprint>"}],
-            "APIKey":"<consumer key from MC developer portal project>"
+            "APIKey":"<consumer key from MC developer portal project>",
+            "ResponceHost":"<responce host value for requests and call-back answers>"
         }
 }

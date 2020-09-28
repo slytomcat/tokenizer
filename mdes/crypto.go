@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 
 	oauth "github.com/mastercard/oauth1-signer-go"
 	tools "github.com/slytomcat/tokenizer/tools"
@@ -103,7 +104,7 @@ func (m MDESapi) decrypKey(keyFP string) *rsa.PrivateKey {
 	// select key by fingerprint (there must be 1+ keys for decryption)
 	decryptKey, ok := m.storedDecryptKeys[keyFP]
 	if !ok {
-		panic("no key for fingerprint:" + keyFP)
+		log.Print("ERROR: no key for fingerprint:" + keyFP)
 	}
 	return decryptKey
 }

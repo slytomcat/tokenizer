@@ -2,3 +2,4 @@ certs
 config.json
 tokenizer*
 *password*
+deploy*
