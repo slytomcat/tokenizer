@@ -44,8 +44,8 @@ type TokenInfo struct {
 type MediaContent struct {
 	Type   string
 	Data   string
-	Heigth string
-	Width  string
+	Heigth int
+	Width  int
 }
 
 // MediaContents bla-bla

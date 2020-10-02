@@ -129,6 +129,8 @@ func (h Handler) tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	tools.Debug("request read: %+v", reqData)
+
 	token, status, err := h.apiHandler.Tokenize(
 		reqData.OutSystem,
 		reqData.RequestorID,
@@ -276,6 +278,8 @@ func (h Handler) searchHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	tools.Debug("request read: %+v", rData)
+
 	td, err := h.apiHandler.SearchToken(
 		rData.OutSystem,
 		rData.RequestorID,
@@ -288,6 +292,7 @@ func (h Handler) searchHandler(w http.ResponseWriter, req *http.Request) {
 		rData.Source,
 	)
 	if err != nil {
+		log.Printf("request error: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

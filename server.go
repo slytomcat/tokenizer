@@ -167,11 +167,6 @@ func storeTokenData(outSystem, requestorID, typ, tokenUniqueReference, status st
 	cbranded bool, cbname, iname, assetID string, assurance int) {
 	switch typ {
 	case "MC":
-		// get asset url
-		assetURL, err := storeAsset(typ, assetID)
-		if err != nil {
-			log.Printf("ERROR: asset storage error: %v", err)
-		}
 
 		data := database.TokenData{
 			OutSystem:       outSystem,
@@ -182,16 +177,31 @@ func storeTokenData(outSystem, requestorID, typ, tokenUniqueReference, status st
 			Cobranded:       cbranded,
 			CobrandName:     cbname,
 			IssuerName:      iname,
-			AssetURL:        assetURL,
-			AssuranceLevel:  assurance,
+			//AssetURL:        assetURL,
+			AssuranceLevel: assurance,
 		}
 
-		err = db.StoreTokenInfo(mcPrefix+tokenUniqueReference, &data)
+		err := db.StoreTokenInfo(mcPrefix+tokenUniqueReference, &data)
 		if err != nil {
 			log.Printf("ERROR: token info storing error: %v", err)
 		} else {
 			log.Printf("INFO: stored info for token %s: %+v", mcPrefix+tokenUniqueReference, data)
 		}
+
+		// store asset after storing the main data as it is a long operation
+		data.AssetURL, err = storeAsset(typ, assetID)
+		if err != nil {
+			log.Printf("ERROR: asset storage error: %v", err)
+		}
+		// THE ONLY AssetURL should be updated in DB
+		// // update asset
+		// err = db.StoreTokenInfo(mcPrefix+tokenUniqueReference, &data)
+		// if err != nil {
+		// 	log.Printf("ERROR: token info storing error: %v", err)
+		// } else {
+		// 	log.Printf("INFO: stored info for token %s: %+v", mcPrefix+tokenUniqueReference, data)
+		// }
+
 	case "VISA":
 		log.Print("unsupported yet card type")
 	default:
@@ -311,15 +321,17 @@ func (handler) GetToken(osys, trid, tur string) (*api.TokenStatus, error) {
 }
 
 func (handler) SearchToken(osys, trid, tur, panRef, ctype, pan, exp, cvc, source string) ([]api.TokenStatus, error) {
-	if len(exp) != 4 {
-		return nil, errors.New("wrong length of exp (must be 4)")
+	cData := mdes.CardAccountData{}
+	if pan != "" {
+		if len(exp) != 4 {
+			return nil, errors.New("wrong length of exp (must be 4)")
+		}
+		cData.AccountNumber = pan
+		cData.ExpiryMonth = exp[:2]
+		cData.ExpiryYear = exp[2:]
+		cData.SecurityCode = cvc
 	}
-	tokenStatuses, err := m.Search(trid, tur, panRef, mdes.CardAccountData{
-		AccountNumber: pan,
-		ExpiryMonth:   exp[:2],
-		ExpiryYear:    exp[2:],
-		SecurityCode:  cvc,
-	})
+	tokenStatuses, err := m.Search(trid, tur, panRef, cData)
 	if err != nil {
 		return nil, err
 	}

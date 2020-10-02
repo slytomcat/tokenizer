@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,7 +17,6 @@ import (
 var (
 	DEBUG = debug == "y"
 	debug = "y" // cange it via ldflags to disable debugging in PROD (see ../build_prod.bash)
-
 )
 
 // ReadPath returns []byte buffer with file or environment variable content.
@@ -169,4 +169,11 @@ func UniqueID() string {
 	id := make([]byte, 24)
 	rand.Read(id)
 	return base64.URLEncoding.EncodeToString(id)
+}
+
+// UnpredictableNumber returns 8 HEX string for MDES transact request
+func UnpredictableNumber() string {
+	id := make([]byte, 4)
+	rand.Read(id)
+	return hex.EncodeToString(id)
 }

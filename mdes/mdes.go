@@ -51,7 +51,7 @@ type Config struct {
 	DecryptKeyPassw  string
 	DecryptKeys      []keywfp // to support multiple keys
 	APIKey           string
-	ResponceHost     string
+	ResponseHost     string
 }
 
 // MDESapi TokenizerAPI implementation for MasterCard MDES Digital enabled API
@@ -74,7 +74,7 @@ type MDESapi struct {
 	urlGetToken        string
 	urlSearch          string
 	sandbox            bool
-	responceHost       string
+	responseHost       string
 }
 
 // encryptedPayload structure of encrypted payload of MDES API
@@ -92,7 +92,7 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData), tridHandler
 	mAPI := &MDESapi{
 		cbHandler:    cbHandler,
 		tridHandler:  tridHandler,
-		responceHost: conf.ResponceHost,
+		responseHost: conf.ResponseHost,
 	}
 
 	var err error
@@ -142,7 +142,7 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData), tridHandler
 			path:         conf.CallBackURI,
 			tridFunc:     mAPI.tridCB,
 			tridpath:     conf.TRIDcbURI,
-			responceHost: conf.ResponceHost,
+			responseHost: conf.ResponseHost,
 		},
 	}
 
@@ -176,7 +176,7 @@ func NewMDESapi(conf *Config, cbHandler func(NotificationTokenData), tridHandler
 	return mAPI, nil
 }
 
-// request makes request with oAuth header by 'url' with 'payload'. It returns responce body and error
+// request makes request with oAuth header by 'url' with 'payload'. It returns response body and error
 func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 
 	request, _ := http.NewRequest(method, url, bytes.NewReader(payload))
@@ -196,28 +196,28 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 	log.Printf("    <<<<<<<    Request Heder:\n%v\n", string(header))
 	log.Printf("    <<<<<<<    Request Body:\n%s\n", payload)
 
-	// get responce
-	responce, err := http.DefaultClient.Do(request)
+	// get response
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		log.Printf("request sending error: %v", err)
 		return nil, fmt.Errorf("request sending error: %w", err)
 	}
-	defer responce.Body.Close()
+	defer response.Body.Close()
 
-	body, err := ioutil.ReadAll(responce.Body)
+	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Printf("responce body reading error: %v", err)
-		return nil, fmt.Errorf("responce body reading error: %w", err)
+		log.Printf("response body reading error: %v", err)
+		return nil, fmt.Errorf("response body reading error: %w", err)
 	}
 
 	// fiter output
 	output := m.ourputRe.ReplaceAll(body, []byte(`"data":"--<--data skiped-->--"`))
 	// TO DO decide what to output in log/debug concole
-	log.Printf("    >>>>>>>    Response: %s\n%s\n", responce.Status, output)
+	log.Printf("    >>>>>>>    Response: %s\n%s\n", response.Status, output)
 
 	// check the status code
-	if responce.StatusCode != 200 {
-		return nil, fmt.Errorf("responce error: %s", responce.Status)
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("response error: %s", response.Status)
 	}
 
 	// check body for error
@@ -228,7 +228,7 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("unmarshling error structure error: %v", err)
 		}
-		return nil, fmt.Errorf("responce error received: %+v", errData)
+		return nil, fmt.Errorf("response error received: %+v", errData)
 	}
 
 	return body, nil
@@ -314,7 +314,12 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 	payloadToEncrypt, _ := json.Marshal(struct {
 		CardAccountData CardAccountData `json:"cardAccountData"`
 		Source          string          `json:"source"`
-	}{})
+	}{
+		CardAccountData: cardData,
+		Source:          source,
+	})
+
+	tools.Debug("encypted data: %s", payloadToEncrypt)
 
 	encrPayload, err := m.encryptPayload(payloadToEncrypt)
 	if err != nil {
@@ -322,7 +327,7 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 	}
 
 	payload, _ := json.Marshal(struct {
-		ResponseHost       string `json:"responseHost"`
+		// ResponseHost       string `json:"responseHost"`
 		RequestID          string `json:"requestId"`
 		TaskID             string `json:"taskId"`
 		TokenType          string `json:"tokenType"`
@@ -331,7 +336,7 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 			EncryptedPayload encryptedPayload `json:"encryptedPayload"`
 		} `json:"fundingAccountInfo"`
 	}{
-		ResponseHost:     m.responceHost,
+		// ResponseHost:     m.responseHost,
 		RequestID:        tools.UniqueID(),
 		TaskID:           tools.UniqueID(),
 		TokenType:        "CLOUD", //constant
@@ -408,15 +413,19 @@ func (m MDESapi) Tokenize(outSystem, requestorID string, cardData CardAccountDat
 func (m MDESapi) Transact(tur string) (*CryptogramData, error) {
 
 	payload, _ := json.Marshal(struct {
-		ResponseHost         string `json:"responseHost"`
+		//ResponseHost         string `json:"responseHost"`
 		RequestID            string `json:"requestId"`
 		TokenUniqueReference string `json:"tokenUniqueReference"`
-		CryptogramType       string `json:"cryptogramType"`
+		DsrpType             string `json:"dsrpType"`
+		//CryptogramType       string `json:"cryptogramType"`
+		UnpredictableNumber string `json:"unpredictableNumber"`
 	}{
-		ResponseHost:         m.responceHost,
+		//ResponseHost:         m.responseHost,
 		RequestID:            tools.UniqueID(),
 		TokenUniqueReference: tur,
-		CryptogramType:       "UCAF",
+		DsrpType:             "UCAF",
+		//CryptogramType:       "UCAF",
+		UnpredictableNumber: tools.UnpredictableNumber(),
 	})
 
 	respone, err := m.request("POST", m.urlTransact, payload)
@@ -424,17 +433,15 @@ func (m MDESapi) Transact(tur string) (*CryptogramData, error) {
 		return nil, err
 	}
 
-	responceData := struct {
+	responseData := struct {
 		EncryptedPayload encryptedPayload
-	}{
-		EncryptedPayload: encryptedPayload{},
-	}
+	}{}
 
-	if err := json.Unmarshal(respone, &responceData); err != nil {
+	if err := json.Unmarshal(respone, &responseData); err != nil {
 		return nil, err
 	}
 
-	decrypted, err := m.decryptPayload(&responceData.EncryptedPayload)
+	decrypted, err := m.decryptPayload(&responseData.EncryptedPayload)
 	if err != nil {
 		return nil, err
 	}
@@ -460,7 +467,7 @@ func (m MDESapi) Manage(method string, tokens []string, causedBy, reasonCode str
 		CausedBy              string   `json:"causedBy"`
 		ReasonCode            string   `json:"reasonCode"`
 	}{
-		ResponseHost:          m.responceHost,
+		ResponseHost:          m.responseHost,
 		RequestID:             tools.UniqueID(),
 		TokenUniqueReferences: tokens,
 		CausedBy:              causedBy,
@@ -481,37 +488,37 @@ func (m MDESapi) Manage(method string, tokens []string, causedBy, reasonCode str
 		return nil, err
 	}
 
-	responceData := struct {
+	responseData := struct {
 		Tokens []TokenStatus
 	}{}
 
-	if err := json.Unmarshal(respone, &responceData); err != nil {
+	if err := json.Unmarshal(respone, &responseData); err != nil {
 		return nil, err
 	}
 
-	return responceData.Tokens, nil
+	return responseData.Tokens, nil
 }
 
 // GetAsset is the implementation of MDES GetAsset API call
 func (m MDESapi) GetAsset(assetID string) (*MediaContent, error) {
 
-	responce, err := m.request("GET", m.urlGetAsset+assetID, nil)
+	response, err := m.request("GET", m.urlGetAsset+assetID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("getting asset error: %v", err)
 	}
-	responceData := struct {
+	responseData := struct {
 		MediaContents MediaContents
 	}{}
 
-	if err := json.Unmarshal(responce, &responceData); err != nil {
+	if err := json.Unmarshal(response, &responseData); err != nil {
 		return nil, err
 	}
 
-	if len(responceData.MediaContents) < 1 {
+	if len(responseData.MediaContents) < 1 {
 		return nil, errors.New("no media data received")
 	}
 
-	return &responceData.MediaContents[0], nil
+	return &responseData.MediaContents[0], nil
 }
 
 // Call-back handling staff
@@ -521,7 +528,7 @@ type callBackHandler struct {
 	path         string
 	tridFunc     func([]byte) (string, error)
 	tridpath     string
-	responceHost string
+	responseHost string
 }
 
 func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -536,8 +543,10 @@ func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var rID string
 	switch r.Method + r.URL.Path {
 	case "POST" + c.path:
+		log.Printf("INFO: NTU call-back received: %s", body)
 		rID, err = c.cbFunc(body)
 	case "POST" + c.tridpath:
+		log.Printf("INFO: TRID API call-back received: %s", body)
 		rID, err = c.tridFunc(body)
 	case "GET/":
 		w.Write([]byte("MDES - ok"))
@@ -554,16 +563,16 @@ func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responce, _ := json.Marshal(struct {
+	response, _ := json.Marshal(struct {
 		ResponseHost string `json:"responseHost"`
 		ResponseID   string `json:"responseId"`
 	}{
-		ResponseHost: c.responceHost,
+		ResponseHost: c.responseHost,
 		ResponseID:   rID,
 	})
 
 	w.Header().Add("Content-Type", "application/json")
-	w.Write(responce)
+	w.Write(response)
 	return
 }
 
@@ -597,19 +606,19 @@ func (m MDESapi) notify(payload []byte) (string, error) {
 	// REMOVE IT BY MOVING TO MTF|PROD ! ! !
 
 	// unwrap decrypted data
-	responceData := NotificationTokensData{}
+	responseData := NotificationTokensData{}
 
-	err = json.Unmarshal(decrypted, &responceData)
+	err = json.Unmarshal(decrypted, &responseData)
 	if err != nil {
 		return reqData.RequestID, err
 	}
 
-	if len(responceData.Tokens) == 0 {
+	if len(responseData.Tokens) == 0 {
 		return reqData.RequestID, errors.New("no data in the list of Tokens")
 	}
 
 	// forward notifications for each token
-	for _, t := range responceData.Tokens {
+	for _, t := range responseData.Tokens {
 		go m.cbHandler(t)
 	}
 	return reqData.RequestID, nil
@@ -646,19 +655,19 @@ func (m MDESapi) tridCB(payload []byte) (string, error) {
 func (m MDESapi) GetToken(rtid, tur string) (*TokenStatus, error) {
 
 	payload, _ := json.Marshal(struct {
-		RequestID    string `json:"requestId"`
-		ResponseHost string `json:"responseHost"`
+		RequestID string `json:"requestId"`
+		//ResponseHost string `json:"responseHost"`
 		//TokenRequestorID     string `json:"tokenRequestorId"`
 		TokenUniqueReference string `json:"tokenUniqueReference"`
-		PaymentAppInstanceID string `json:"paymentAppInstanceId"`
-		IincludeTokenDetail  string `json:"includeTokenDetail"`
+		//PaymentAppInstanceID string `json:"paymentAppInstanceId"`
+		IincludeTokenDetail string `json:"includeTokenDetail"`
 	}{
-		RequestID:    tools.UniqueID(),
-		ResponseHost: m.responceHost,
+		RequestID: tools.UniqueID(),
+		//ResponseHost: m.responseHost,
 		//TokenRequestorID:     trid,
 		TokenUniqueReference: tur,
-		PaymentAppInstanceID: "M4MCLOUDDSRP", // For M4M token requestors this value is 'M4MCLOUDDSRP' (trid-api.yaml)
-		IincludeTokenDetail:  "true",
+		//PaymentAppInstanceID: "M4MCLOUDDSRP", // For M4M token requestors this value is 'M4MCLOUDDSRP' (trid-api.yaml)
+		IincludeTokenDetail: "true",
 	})
 
 	response, err := m.request("POST", m.urlGetToken, payload)
@@ -678,28 +687,29 @@ func (m MDESapi) GetToken(rtid, tur string) (*TokenStatus, error) {
 		return nil, err
 	}
 
-	decrypted, err := m.decryptPayload(&responseStruct.TokenDetail)
-	if err != nil {
-		return nil, err
+	if len(responseStruct.TokenDetail.EncryptedData) > 0 {
+		decrypted, err := m.decryptPayload(&responseStruct.TokenDetail)
+		if err != nil {
+			return nil, err
+		}
+
+		// >>> remove in PROD env
+		log.Printf("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
+		// <<< remove in PROD env
+
+		tokenDetail := struct {
+			TokenNumber             string
+			ExpiryMonth             string
+			paymentAccountReference string
+			dataValidUntilTimestamp string
+			PaymentAccountReference string
+		}{}
+
+		err = json.Unmarshal(decrypted, &tokenDetail)
+		if err != nil {
+			return nil, err
+		}
 	}
-
-	// >>> remove in PROD env
-	log.Printf("Decrypted(myPrivKey) payload:\n%s\n", decrypted)
-	// <<< remove in PROD env
-
-	tokenDetail := struct {
-		TokenNumber             string
-		ExpiryMonth             string
-		paymentAccountReference string
-		dataValidUntilTimestamp string
-		PaymentAccountReference string
-	}{}
-
-	err = json.Unmarshal(decrypted, &tokenDetail)
-	if err != nil {
-		return nil, err
-	}
-
 	return &TokenStatus{
 		TokenUniqueReference: responseStruct.Token.TokenUniqueReference,
 		Status:               responseStruct.Token.Status,
@@ -711,7 +721,7 @@ func (m MDESapi) GetToken(rtid, tur string) (*TokenStatus, error) {
 func (m MDESapi) Search(trid, tur, panURef string, cardData CardAccountData) ([]TokenStatus, error) {
 
 	reqID := tools.UniqueID()
-	respHost := m.responceHost
+	respHost := m.responseHost
 	payload := []byte{}
 	switch {
 	case tur != "":
