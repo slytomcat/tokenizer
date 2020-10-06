@@ -410,7 +410,13 @@ func mdesNotifyForfard(t mdes.NotificationTokenData) {
 
 	log.Printf("INFO: notification for outSytem: %s by cb URL: %s\nToken: %s TokenData: %+v", tData.OutSystem, osysData.CBURL, t.TokenUniqueReference, tData)
 
-	payload, _ := json.Marshal(tData)
+	payload, _ := json.Marshal(struct {
+		TUR       string
+		TokenData database.TokenData
+	}{
+		TUR:       t.TokenUniqueReference,
+		TokenData: *tData,
+	})
 
 	err = q.Send(queue.QData{
 		URL:     osysData.CBURL,
