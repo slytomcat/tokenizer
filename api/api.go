@@ -146,11 +146,11 @@ func (h Handler) tokenizeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	resp, _ := json.Marshal(struct {
-		TokenUniqueReferences string
-		Status                string
+		TokenUniqueReference string
+		Status               string
 	}{
-		TokenUniqueReferences: token,
-		Status:                status,
+		TokenUniqueReference: token,
+		Status:               status,
 	})
 	w.Header().Add("Content-Type", "application/json")
 	w.Write(resp)
