@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -63,7 +62,7 @@ func TestCache(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	payloadD, err := ioutil.ReadAll(resp.Body)
+	payloadD, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatal(err)
 	}

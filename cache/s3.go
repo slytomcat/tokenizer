@@ -3,7 +3,7 @@ package cache
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -88,7 +88,7 @@ func (c Cache) Get(path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	payload, err := ioutil.ReadAll(resp.Body)
+	payload, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

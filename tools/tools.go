@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"strings"
@@ -40,7 +39,7 @@ func ReadPath(path string, binary bool) ([]byte, error) {
 		return nil, err
 	}
 	defer file.Close()
-	return ioutil.ReadAll(file)
+	return io.ReadAll(file)
 }
 
 // ReadJSON reads the data from path and tries to unmarshal it into supplied structure.
@@ -107,7 +106,7 @@ func Updater() (func(*string, string), *bool) {
 
 // ReadBodyToStruct reads request body into interface{}
 func ReadBodyToStruct(body io.ReadCloser, i interface{}) error {
-	data, err := ioutil.ReadAll(body)
+	data, err := io.ReadAll(body)
 	if err != nil {
 		return err
 	}

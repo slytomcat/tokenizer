@@ -11,7 +11,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -73,7 +73,7 @@ func request(url string, payload []byte) ([]byte, error) {
 	}
 	defer responce.Body.Close()
 
-	body, err := ioutil.ReadAll(responce.Body)
+	body, err := io.ReadAll(responce.Body)
 	if err != nil {
 		return nil, fmt.Errorf("responce body reading error: %w", err)
 	}
@@ -228,7 +228,7 @@ func TestServerKill(t *testing.T) {
 
 	w.Close()
 	log.SetOutput(logger)
-	buf, err := ioutil.ReadAll(r)
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		t.Error(err)
 	}

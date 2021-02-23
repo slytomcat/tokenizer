@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"regexp"
@@ -204,7 +204,7 @@ func (m MDESapi) request(method, url string, payload []byte) ([]byte, error) {
 	}
 	defer response.Body.Close()
 
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		log.Printf("response body reading error: %v", err)
 		return nil, fmt.Errorf("response body reading error: %w", err)
@@ -533,7 +533,7 @@ type callBackHandler struct {
 
 func (c callBackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("ERROR: notification body reading error:%v", err)
 		w.WriteHeader(http.StatusBadRequest)

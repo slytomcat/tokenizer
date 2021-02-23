@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -37,8 +37,8 @@ func TestMain(m *testing.M) {
 	configData.MDES.SignKey = "SandBoxKeys/SandBox.p12"
 	configData.MDES.DecryptKeyPassw = "SandBoxKeys/password_dk"
 	configData.MDES.DecryptKeys = []keywfp{
-		keywfp{Key: "SandBoxKeys/key.p12", Fingerprint: "982175aa53858f44de919c70b20e011681b9db0deec4f4c117da8ece86a4684e"},
-		keywfp{Key: "SandBoxKeys/key.p12", Fingerprint: "243e6992ea467f1cbb9973facfcc3bf17b5cd007"}, // for testing encryption a decryption
+		{Key: "SandBoxKeys/key.p12", Fingerprint: "982175aa53858f44de919c70b20e011681b9db0deec4f4c117da8ece86a4684e"},
+		{Key: "SandBoxKeys/key.p12", Fingerprint: "243e6992ea467f1cbb9973facfcc3bf17b5cd007"}, // for testing encryption a decryption
 	}
 
 	mdesAPI, err = NewMDESapi(
@@ -331,7 +331,7 @@ func request(url string, payload []byte) ([]byte, error) {
 	}
 	defer responce.Body.Close()
 
-	body, err := ioutil.ReadAll(responce.Body)
+	body, err := io.ReadAll(responce.Body)
 	if err != nil {
 		return nil, fmt.Errorf("responce body reading error: %w", err)
 	}

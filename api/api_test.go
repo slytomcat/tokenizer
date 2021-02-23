@@ -17,7 +17,7 @@ package api
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -35,7 +35,7 @@ func (testAPIhandler) Tokenize(outS, trid, typ, pan, exp, cvc, source string) (s
 }
 func (testAPIhandler) Manage(method, typ string, tokens []string, caused, reason string) ([]TokenStatus, error) {
 	log.Printf("Manage method: %s tokens: %v, type: %s reason: %s, causedby: %s ", method, tokens, typ, reason, caused)
-	return []TokenStatus{TokenStatus{"TUR", "STSTUS", "TIMESTAMP", []string{"SuspendedBy"}}}, nil
+	return []TokenStatus{{"TUR", "STSTUS", "TIMESTAMP", []string{"SuspendedBy"}}}, nil
 }
 func (testAPIhandler) Transact(typ, tur string) (string, string, string, error) {
 	log.Printf("Transact: typ: %s, TUR: %s", typ, tur)
@@ -50,7 +50,7 @@ func (testAPIhandler) GetToken(osys, trid, tur string) (*TokenStatus, error) {
 }
 func (testAPIhandler) SearchToken(osys, trid, tur, panRef, ctype, pan, exp, cvc, source string) ([]TokenStatus, error) {
 	log.Printf("SearchToken: osys: %s trid: %s,tur: %s, panRef: %s, ctype: %s, pan: %s, exp: %s, cvc: %s, source: %s", osys, trid, tur, panRef, ctype, pan, exp, cvc, source)
-	return []TokenStatus{TokenStatus{}}, nil
+	return []TokenStatus{{}}, nil
 }
 
 var (
@@ -94,7 +94,7 @@ func requst(url string, payload []byte) ([]byte, error) {
 	}
 	defer responce.Body.Close()
 
-	body, err := ioutil.ReadAll(responce.Body)
+	body, err := io.ReadAll(responce.Body)
 	if err != nil {
 		return nil, fmt.Errorf("responce body reading error: %w", err)
 	}
