@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/slytomcat/tokenizer/tools"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -29,13 +30,9 @@ func TestOutSysData(t *testing.T) {
 		CBURL:   "urlinit",
 		TRIDURL: "tridurl",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	d, err := db.GetOutSysInfo("A5")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	if d.CBURL != "urlinit" || d.TRIDURL != "tridurl" {
 		t.Fatalf("uncorrect value: %+v", d)
 	}
@@ -43,16 +40,13 @@ func TestOutSysData(t *testing.T) {
 		CBURL:   "urlinit1",
 		TRIDURL: "tridurl1",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	d, err = db.GetOutSysInfo("A5")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d.CBURL != "urlinit1" || d.TRIDURL != "tridurl1" {
-		t.Fatalf("uncorrect value: %+v", d)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, OutSysInfo{
+		CBURL:   "urlinit",
+		TRIDURL: "tridurl",
+	}, d)
 
 }
 
@@ -60,26 +54,13 @@ func TestAssetData(t *testing.T) {
 	initDB()
 
 	err := db.StoreAsset("A5", &Asset{"urlinit"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	d, err := db.GetAsset("A5")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d.PicURL != "urlinit" {
-		t.Fatal("uncorrect value")
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "urlinit", d.PicURL)
 	err = db.StoreAsset("A5", &Asset{"urllater"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	d, err = db.GetAsset("A5")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d.PicURL != "urllater" {
-		t.Fatal("uncorrect value")
-	}
-
+	assert.NoError(t, err)
+	assert.Equal(t, "urllater", d.PicURL)
 }

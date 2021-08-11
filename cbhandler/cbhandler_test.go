@@ -7,6 +7,7 @@ import (
 
 	"github.com/slytomcat/tokenizer/queue"
 	"github.com/slytomcat/tokenizer/tools"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test1(t *testing.T) {
@@ -38,16 +39,12 @@ func Test1(t *testing.T) {
 		URL:     "wrong URL",
 		Payload: `{"some":"payload"}`,
 	})
-	if err != nil {
-		t.Fatalf("queue sending error: %v", err)
-	}
+	assert.NoError(t, err)
 	err = q.Send(queue.QData{
 		URL:     "http://s-t-c.tk:8080/echo",
 		Payload: `{"some":"payload"}`,
 	})
-	if err != nil {
-		t.Fatalf("queue sending error: %v", err)
-	}
+	assert.NoError(t, err)
 	time.Sleep(time.Second * 2)
 
 	t.Log(`wait finished`)

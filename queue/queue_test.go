@@ -6,6 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/slytomcat/tokenizer/tools"
 )
@@ -13,14 +14,10 @@ import (
 func TestNew(t *testing.T) {
 	log.SetFlags(log.Lmicroseconds)
 	conf := struct{ QUEUE Config }{}
-	err := tools.ReadJSON("../config.json", &conf)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, tools.ReadJSON("../config.json", &conf))
+
 	q, err := NewQueue(&conf.QUEUE)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	// clearance
 	req, _ := q.q.PurgeQueueRequest(&sqs.PurgeQueueInput{
@@ -34,38 +31,26 @@ func TestNew(t *testing.T) {
 	}
 
 	err = q.Send(tdata1)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	// err = q.Send(tdata2)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	// 	assert.NoError(t, err)
 
 	// _ = q.Send(tdata3)
 
 	data, receipt, err := q.Receive()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 	t.Log(*data)
 
 	err = q.Delete(receipt)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	err = q.Check()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	data, receipt, err = q.Receive()
-	if err == nil && data != nil {
-		t.Fatal("no error when expected")
-	}
-	t.Logf("expected error: %v", err)
+	assert.Error(t, err)
+	assert.Nil(t, data)
 
 	// clearance
 	req, _ = q.q.PurgeQueueRequest(&sqs.PurgeQueueInput{
@@ -76,14 +61,7 @@ func TestNew(t *testing.T) {
 	q.q.DeleteQueue(&sqs.DeleteQueueInput{QueueUrl: aws.String(q.queueURL)})
 
 	data, receipt, err = q.Receive()
-	if err == nil {
-		t.Fatal("no error when expected")
-	}
-	t.Logf("expected error: %v", err)
-
+	assert.Error(t, err)
 	q, err = NewQueue(&conf.QUEUE)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	assert.NoError(t, err)
 }

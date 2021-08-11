@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"strings"
@@ -34,12 +35,7 @@ func ReadPath(path string, binary bool) ([]byte, error) {
 		return data, nil
 	}
 	// get data from file
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	return io.ReadAll(file)
+	return ioutil.ReadFile(path)
 }
 
 // ReadJSON reads the data from path and tries to unmarshal it into supplied structure.
